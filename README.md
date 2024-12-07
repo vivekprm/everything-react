@@ -109,3 +109,8 @@ What this looks like graphically is that you have all your app components with t
 Both solutions the tightly coupled two-way data binding solution and the oneway data binding solution, work great on small apps where there are just a small number of UI elements. However, as apps get more complex, the tightly-coupled two-way data binding doesn't scale well. What happens is that many tightly-coupled model-view-controller loops must continually synchronize dragging down the performance of the app. That's essentially because it's slow to directly update the Browser DOM from JavaScript.
 
 In React as you add more components, which is what happens as apps get more complex, there is no direct linkage to the faraway browser DOM. All those components when they need to update, simply update the local Virtual DOM stored in JavaScript, and that's lightening fast. Then after all the components update a single merge step is done and that step figures out what real DOM elements to change, and then in a single pass, JavaScript reaches out to the faraway DOM and does the update. Both conceptually and in the real world, this makes web apps written in React perform really well for their users.
+
+# React Architecture
+- React is 100% component based.
+- All React Apps start by rendering a single component.
+- Understand how that single component renders to a browser.
