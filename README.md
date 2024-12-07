@@ -114,3 +114,9 @@ In React as you add more components, which is what happens as apps get more comp
 - React is 100% component based.
 - All React Apps start by rendering a single component.
 - Understand how that single component renders to a browser.
+
+<img width="1226" alt="Screenshot 2024-12-07 at 3 58 51 PM" src="https://github.com/user-attachments/assets/8aea2418-e6a6-4e74-8946-6a1966fd0fb2">
+
+Look at the example react function and look at the JavaScript return value. It specifically returns a new React element created by the library call **createElement**. Remember React with a capital R is the React library itself. It's likely that all the React apps you build will be using one of the popular tool chains. There is a good chance it will be Next.js as it's the most popular, but there are others also, including Remix, Gatsby, and RedwoodJS. If not you're likely using a custom webpack build that runs the **Babel Transpiler** directly allowing you to use JSX syntax in your apps.
+
+We will be using Next.js which launches our App by instantiating the component on our behalf that is in the file ```/app/page.js```. This file contains the Root element of our React App. 
