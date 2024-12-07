@@ -120,3 +120,49 @@ In React as you add more components, which is what happens as apps get more comp
 Look at the example react function and look at the JavaScript return value. It specifically returns a new React element created by the library call **createElement**. Remember React with a capital R is the React library itself. It's likely that all the React apps you build will be using one of the popular tool chains. There is a good chance it will be Next.js as it's the most popular, but there are others also, including Remix, Gatsby, and RedwoodJS. If not you're likely using a custom webpack build that runs the **Babel Transpiler** directly allowing you to use JSX syntax in your apps.
 
 We will be using Next.js which launches our App by instantiating the component on our behalf that is in the file ```/app/page.js```. This file contains the Root element of our React App. 
+
+A **Library** is defined as a group of related functions or classes that perform unique operations to optmize well defined tasks.
+
+React is essentially two libraries:
+```js
+import react from 'react';
+import reactDOM from "react-dom"
+```
+
+One is ```react``` and the other one is ```react-dom```. The easiest way to see the source of each is to put the code from the [React site](https://react.dev/blog/2024/04/25/react-19-upgrade-guide#umd-builds-removed) that includes script tags and the SEM imports into HTML file.
+
+```html
+<script type="module">
+  import React from "https://esm.sh/react@19/?dev"
+  import ReactDOMClient from "https://esm.sh/react-dom@19/client?dev"
+  ...
+</script>
+```
+
+Let's include h1 tag just for reference.
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="module">
+        import React from "https://esm.sh/react@19/?dev"
+        import ReactDOMClient from "https://esm.sh/react-dom@19/client?dev"
+    </script>
+</head>
+<body>
+    <h1>Hello from what is React</h1>
+</body>
+</html>
+```
+
+Open this in browser and look at the network tab. It shows amongst other things request for our react library and look at twhat was fetched. At the bottom you can see all the libarary calls enumerated. That includes not only low-level react calls like ```react.createElement``` but also the higher level ones, including all the ReactHooks like **useState** and **useEffect**.
+
+Second for react-dom more of the same, that is ReactDOM is the Browser specific library that allows react to manipulate the browser DOM. It's totally upto you to decide how to use the calls in the library to build your apps.
+
+A Framework on the otherhand is a collection of programming tools with a specific goal in mind like building a website or deploying a website. The typical requirement for a framework is that it is in control of the flow of the program you are creating unlike a library where you are in control.
+
+If you are using just a library, the code you write calls the library code directly, and you choose how that code works. If you are using a Framework that framework itself calls your code and the framework contained calls to the library. Your program can also call the library directly. 
+
+An example of a React Framework is **NextJS**. **NextJS** not only calls the react libraries it also uses Node, Webpack, SWC, which is the code transpiler written in Rust, they used to use Babel, PostCSS, Jest and many other technologies.
+
+Bottomline, if you are building apps with React, you are likely to use a framework mostly because of all the time it will save you when building react apps for the web.
