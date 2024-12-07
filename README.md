@@ -165,4 +165,9 @@ If you are using just a library, the code you write calls the library code direc
 
 An example of a React Framework is **NextJS**. **NextJS** not only calls the react libraries it also uses Node, Webpack, SWC, which is the code transpiler written in Rust, they used to use Babel, PostCSS, Jest and many other technologies.
 
+<img width="683" alt="Screenshot 2024-12-07 at 5 05 17 PM" src="https://github.com/user-attachments/assets/fba61390-82b5-4509-a1e1-7af3bfa1fda6">
+
 Bottomline, if you are building apps with React, you are likely to use a framework mostly because of all the time it will save you when building react apps for the web.
+
+# What It Means to be SPA
+When a web page is requested by the browser, the page downloaded includes HTML and JavaScript and that from then on, there are **no more full-page requests** made from the browser.
