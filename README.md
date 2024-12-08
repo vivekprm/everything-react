@@ -579,8 +579,6 @@ Assuming that you have rendered UI that is interactive, meaning there are events
 In the todo app above as soon as we enter new item and click add item button, we get a new list item added to our unordered list. What happened for the third list item to be rendered?
 React had to use both the original virtual DOM previously saved as well as the new Virtual DOM created after the user pressed the Add Item button.
 
-<img width="1108" alt="Screenshot 2024-12-08 at 9 51 01 PM" src="https://github.com/user-attachments/assets/51a8da90-5187-4ac0-969f-49bbc9350c54">
-
 React uses these two copies of Virtual DOMs to do a step called **Reconciliation**. This means that the old DOM is compared to the new DOM and only the elements that change are updated. For our case, it's very simple. The new Virtual DOM has just one more element in it than the previously stored old Virtual DOM. From the compare, the necessary DOM calls are created such that just one node can be added to the DOM and no full DOM re-render is needed.
 
 ## Complex React APP Reconciliation
@@ -591,3 +589,14 @@ If you have n components or React Elements in your App's component tree that the
 Luckily there are lots of clever shortcuts the React team has figured out to make that comparison really fast and nowhere near to the O(n^3) calculations. Things like knowing what the React element type is can make a huge difference. That is all the todo items are the same type, where as the TodoItemList component is different type.
 
 Bottomline, the reconciliation step is very fast in real apps because of some awesome job React team has done in optimizing this step.
+
+# Distributed Components
+We want to introduce Server Components without calling them Server Components. Basically, think about React apps that have both components running in a node server and components running in a client browser working together, of course, as distributed components in a React App.
+
+Currently, only viable distributed React Apps are using React Server & Client Components.
+
+Since the node server is running basically the same javascript engine as is running in the browser, it can run React Components and then pass data as receiving parameters down into the browser where client compoents then run. 
+
+In future, we will likely see React Components running inside a separate process in the browser. That process could be running inside a **Web Worker**, it might be running with **Web Assembly**, also called **WASM** and it could be using a **Service Worker**, or for that matter, something not even invented yet.
+
+For now though, the only implementation available for running distributed React is using **Server Components** and **Client Components** with those server components running a node.
