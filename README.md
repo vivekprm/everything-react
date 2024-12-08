@@ -599,7 +599,7 @@ Currently, only viable distributed React Apps are using React Server & Client Co
 
 Since the node server is running basically the same javascript engine as is running in the browser, it can run React Components and then pass data as receiving parameters down into the browser where client compoents then run. 
 
-![Uploading Screenshot 2024-12-08 at 10.13.12 PM.png…]()
+<img width="763" alt="Screenshot 2024-12-08 at 10 13 12 PM" src="https://github.com/user-attachments/assets/9d53d568-ce9d-48cb-ae96-94c0a51d19e3">
 
 In future, we will likely see React Components running inside a separate process in the browser. That process could be running inside a **Web Worker**, it might be running with **Web Assembly**, also called **WASM** and it could be using a **Service Worker**, or for that matter, something not even invented yet.
 
