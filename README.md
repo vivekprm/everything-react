@@ -579,6 +579,8 @@ Assuming that you have rendered UI that is interactive, meaning there are events
 In the todo app above as soon as we enter new item and click add item button, we get a new list item added to our unordered list. What happened for the third list item to be rendered?
 React had to use both the original virtual DOM previously saved as well as the new Virtual DOM created after the user pressed the Add Item button.
 
+<img width="1108" alt="Screenshot 2024-12-08 at 9 51 01 PM" src="https://github.com/user-attachments/assets/51a8da90-5187-4ac0-969f-49bbc9350c54">
+
 React uses these two copies of Virtual DOMs to do a step called **Reconciliation**. This means that the old DOM is compared to the new DOM and only the elements that change are updated. For our case, it's very simple. The new Virtual DOM has just one more element in it than the previously stored old Virtual DOM. From the compare, the necessary DOM calls are created such that just one node can be added to the DOM and no full DOM re-render is needed.
 
 ## Complex React APP Reconciliation
