@@ -171,3 +171,421 @@ Bottomline, if you are building apps with React, you are likely to use a framewo
 
 # What It Means to be SPA
 When a web page is requested by the browser, the page downloaded includes HTML and JavaScript and that from then on, there are **no more full-page requests** made from the browser.
+
+Below is a very basic example of SPA:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Singe Page App (SPA)</title>
+    <script src="index.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
+```
+
+index.js
+```js
+window.onload = () => {
+  const rootElement = document.getElementById("root");
+  rootElement.innerHTML = "Hello from my first SPA App!";
+};
+```
+
+We need to make sure the page is fully rendered before executing any code that references elements on our HTML page. To do that we code the onload event, which is window.onload.
+Technically it's a SPA because we use JavaScript after the page rendered to manipulate our UI, but we can make it little more interesting by adding a button that actually does something.
+
+```js
+window.onload = () => {
+  const rootElement = document.getElementById("root");
+  const button = document.createElement("button");
+  button.innerHTML = "Click Me for current date";
+  button.addEventListener("click", () => {
+    button.innerHTML = new Date().toString();
+  });
+  rootElement.appendChild(button);
+};
+```
+
+Now we know what a single page app is and we know that React is a library that we can make API calls to from our JavaScript that's running inside our browser.
+
+Lets start out by modifying the simple SPA that we built above with just DOM calls to iterate over an array of numbers and then render each number:
+
+```js
+window.onload = () => {
+  const rootElement = document.getElementById("root");
+  const ints = [1, 2, 3];
+
+  ints.forEach((i) => {
+    let li = document.createElement("li");
+    li.innerHTML = i;
+    rootElement.appendChild(li);
+  });
+};
+```
+
+This is basic javascript updating the browser DOM. Let's do the same thing with React library.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple React App No JSX</title>
+    <script src="index.js"></script>
+    <script type="module">
+        import React from "https://esm.sh/react@19/?dev"
+        import ReactDOMClient from "https://esm.sh/react-dom@19/client?dev"
+      </script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
+```
+
+Now let's replace index.js code using React. The First thing to do is to create our React virtual DOM root and assign it to a new variable, that's ```const root = ReactDOMClient.createRoot(root)```. From here on we will have all our interactions with react virtual DOM.
+
+```js
+window.onload = () => {
+  const rootElement = document.getElementById("root");
+  const root = ReactDOMClient.createRoot(rootElement);
+  const ints = [1, 2, 3];
+  const childrenElements = [];
+  childrenElements.push(React.createElement("li", { key: ints[0] }, ints[0]));
+  childrenElements.push(React.createElement("li", { key: ints[1] }, ints[1]));
+  childrenElements.push(React.createElement("li", { key: ints[2] }, ints[2]));
+
+  root.render(childrenElements);
+};
+```
+
+Is this version faster. Not really but if the values associated with elements change React then figures out using the VirtualDOM what has changed and instead of having to replace the full DOM, can just surgically update what needs to be updated and replace just those items in the physical DOM.
+
+# Creating a React App with the Next.js Toolchain/Framework
+You can do everything that React does without a Toolchain and simply program the full React library by making React API calls directly, but almost nobody does that.
+
+Unlike many other JavaScript frameworks out there, the core developers of React have tried very hard to focus on their mission, which is to build a JavaScript library that helps developer like us build high performance websites efficiently.
+
+For a long time, they offered no toolchain to help us build our apps, but instead assumed we would create our own or that they would be provided by the community.
+
+In 2016, those core developers at Facebook, finally decided that they needed to provide the community a standardized way to build React apps, and so they created the **Create React APP** project, and as is no surprise, it became very popular, and for a longtime, was the primary way most of us developers build apps with React.
+
+**Create React APP** is no longer even mentioned in the Facebook docs, and the Opensource toolchain, **Next.js** is by far the most popular way to build React apps. It's actively maintained by **Vercel**, who also happens to have core developers from the React team on its payroll.
+
+You'll still find lots of apps out there built with Create-React-APP, so it's certainly worth knowing but not recommended to start new app with it.
+
+The Plan now is to build the identical app we already built with just the React API, but instead with a Toolcahin and JSX.
+
+The way to create Next.js app is to type the command
+
+```sh
+npx create-next-app@latest 
+```
+
+Then it will ask series of questions
+```
+✔ What is your project named? … myapp
+✔ Would you like to use TypeScript? … No
+✔ Would you like to use ESLint? … Yes
+✔ Would you like to use Tailwind CSS? … No
+✔ Would you like your code inside a `src/` directory? … Yes
+✔ Would you like to use App Router? (recommended) … Yes
+✔ Would you like to use Turbopack for next dev? … No
+✔ Would you like to customize the import alias (@/* by default)? … No
+```
+
+Select APP Router as yes, meaning that our routing will be served starting in the ```/src/app``` folder and specifically, ```page.js```. That means that when browsing to the base URL of the website, in our case in development mode that's ```localhost:3000```, the component that is default exported in the file ```src/app/page.js``` is rendered. In addition, if we created a new file in ```src/app/mylist/page.js``` then the URL at ```localhost:3000/mylist``` would render the default exported component in that file.
+
+By default component in all of those special route files, ```page.js``` that is, is a server component. That means it will run inside your node server before rendering to the browser. This means React hooks like **useState** and **useEffect**, which are associated with the React page lifecycle running in the browser will not work.
+
+Now to launch our app run below command:
+```sh
+npm run dev
+```
+There is lot of code generate in ```src/app``` folder but for our purposes, the only thing that we are currently interested in is the React root element associated with our app, that is the code in the file ```src/app/page.js```.
+
+Let's remove all the code and replace it with just a simple functional component 
+
+```js
+import React from "react";
+
+export default function () {
+  return <div>Hello From Pluralsight</div>;
+}
+```
+
+As mentioned before this component (src/app/page.js) is the server component, meaning ti is rendered in the node server. We can override this behaviour and **make it a pure spot component by adding a single line at the top 'use client' in quotes**.
+
+```js
+'use client'
+import React from "react";
+
+export default function () {
+  return <div>Hello From Pluralsight</div>;
+}
+```
+
+Let's remove the extra files in this folder we don't need. and add a simple global.css as below:
+```css
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+```
+
+What's important to take away from this so far is that:
+- We never had to create a base HTML file and the JavaScript like we did with our simple React app without a toolchain.
+- We don't have to create a Virtual DOM like we did previously.
+- We don't have to explicitly render our Virtual DOM to the browser.
+
+The good news is Next.js toolchain is taking care all of that for us. Let's create a simple list of numbers
+
+```js
+"use client";
+import React from "react";
+
+export default function () {
+  return (
+    <ul>
+      <li>1</li>
+      <li>2</li>
+      <li>3</li>
+    </ul>
+  );
+}
+```
+
+Now let's create a new Component which is just a JavaScript function list items. We could create in a spearate file but for demonstration we will create in the same file.
+
+```js
+"use client";
+import React from "react";
+
+function ListItems() {
+  const ints = [1, 2, 3];
+  return (
+    <>
+      {ints.map((id) => {
+        return <li key={id}>{id}</li>;
+      })}
+    </>
+  );
+}
+
+export default function () {
+  return (
+    <ul>
+      <ListItems />
+    </ul>
+  );
+}
+```
+
+# What F(G(X)) Means
+If you have ever done any pure functional programming, a common expression people use to describe it is, it's the language of F(G(X)). What exactly does that mean?
+
+Basically, it means that **functional programming is about Functional Composition**. Meaning that one function returns another function and that in turn return another function. It's an amazingly powerful way to build complex apps by combining simpler functions together.
+
+It helps you build apps that contain more reusable code reducing duplication while also making them easier to test and find bugs in. This is how exaclty React builds component trees.
+
+Looking at our current app we just built with just two functions, we could rename our main function to F, rename out ListItem function to G, and we essentially now have for our components F(G(X)), that is function F returns Function G. We don't have an X here because we haven't talked about React State but essentially X would be the React State passed in through the function call.
+
+# What Makes React Apps Reactive
+The react engine can maintain for every component in your app what we refer to as component state. State data is different than just data stored in JavaScript variables or objects in that when you update that state value, it persists and causes the React App to re-render itself with whatever the new value of state is. With React, you can't just declare a variable with let and expect that you can change its value and the page will re-render. The react engine has no idea of what's going on with variables you declare with let and would have no way to have the page UI update.
+
+Let's now update our simple number rendering app to use component state, and that should help make clear how react works with state.
+
+Let's move our array of numbers up in the component tree to the main component and pass that array into our list items component.
+
+**The way we pass data from a parent to a child component is we create an attribute on a React element and then assign it to the JavaScript object or primitive we want to pass to the child components**
+
+```js
+"use client";
+import React from "react";
+
+function ListItems({ ints }) {
+  return (
+    <>
+      {ints.map((id) => {
+        return <li key={id}>{id}</li>;
+      })}
+    </>
+  );
+}
+
+export default function () {
+  const ints = [1, 2, 3];
+  return (
+    <ul>
+      <ListItems ints={ints} />
+    </ul>
+  );
+}
+```
+
+Now convert our ints array into React State. We know we are going to want a function that an event will call, so let's also add, while we are here at our top level component a new function definition named addValue. Have  The syntax is as below:
+```js
+"use client";
+import React from "react";
+import { useState } from "react";
+
+function ListItems({ ints, addValue }) {
+  return (
+    <>
+      <button onClick={addValue}>Add Item</button>
+      {ints.map((id) => {
+        return <li key={id}>{id}</li>;
+      })}
+    </>
+  );
+}
+
+export default function () {
+  const [ints, setInts] = useState([1, 2, 3]);
+  function addValue() {
+    const newVal = Math.max(...ints) + 1;
+    setInts([...ints, newVal]);
+  }
+  return (
+    <ul>
+      <ListItems ints={ints} addValue={addValue} />
+    </ul>
+  );
+}
+```
+
+**The way React works to pass values from a parent to a child component is to pass them as an attribute. The way child components can pass data to parent components is a little more indirect in that we pass a function to the child component and that child component can call that function to pass data back to the parent.**
+
+You may be thinking that we really didn't pass any data up from our child to our parent component when the onClick event of the button fired. We can easily solve that by first adding an increment value parameter to our addValue function. Change the increment value from one to that new parameter, then instead of having our ListItem attribute pass the passed in addValue function back to our parent, we can replace that addValue function with an anonymous function that calls addValue.
+
+```js
+"use client";
+import React from "react";
+import { useState } from "react";
+
+function ListItems({ ints, addValue }) {
+  const increment = 3;
+  return (
+    <>
+      <button onClick={() => addValue(increment)}>Add Item</button>
+      {ints.map((id) => {
+        return <li key={id}>{id}</li>;
+      })}
+    </>
+  );
+}
+
+export default function () {
+  const [ints, setInts] = useState([1, 2, 3]);
+  function addValue(incrementValue) {
+    const newVal = Math.max(...ints) + incrementValue;
+    setInts([...ints, newVal]);
+  }
+  return (
+    <ul>
+      <ListItems ints={ints} addValue={addValue} />
+    </ul>
+  );
+}
+```
+
+# How React Work With Browsers
+React at it's core, is a user interface, UI, library. It's component based, meaning that the library itself manages the relationships between different UI components independent of how they are rendered, that is different devices have different methods and logic for how to render the actual UI presented to the user.
+
+React separates the building and managing of components from their rendering to a device.
+
+## Building Apps For React & React Native
+- There is no "write once, run everywhere" for React and React Native.
+- Separate Components required for UIs in React & React Native.
+- You can build shared components between React & React Native.
+
+React Native
+```js
+function App() {
+    return (
+        <View
+            style={{
+                fontSize: 20,
+                fontWeight: "bold",
+            }}>
+            <Text>Hello From Pluralsight</Text>
+        </View>
+    )
+}
+```
+React for Web
+```js
+function App() {
+    return (
+        <div>
+            <b>Hello From Pluralsight!</b>
+        </div>
+    )
+}
+```
+
+JSX syntax is identical but we use completely different component for Mobile & Web, however component structure & composition is identical for full apps, that is building component trees & passing data it's just normal JavaScript functions.
+
+## Two libraries define React on the Web
+- **React**
+    - All about creating React Elements
+    - Those elements have the ultimate purpose of creating UIs for a React app.
+    - Typically involves linking components together in a nested component tree with a top element, the root element of the app.
+    - React Libarary is the same whether you are making apps for web or mobile.
+- **React DOM**
+    - Just for building React apps that run in Web Browser. All of web browser have a DOM, a document object model.
+    - React DOM is all about rendering elements to a web browser.
+    - React DOM's primary purpose is to take a React app's root element and render it to a physical browser DOM.
+    - React DOM is all about the what and the where to render. 
+
+## Understanding React reconciliation
+At the start of every React App, whether you are using a framework or not, is a call to ```ReactDOM.createRoot``` that returns an object that is the root of your App. After that when you call ```root.render``` the React APP renders to the web browser. 
+
+index.js
+```js
+import ReactDOM from "react-dom";
+const container = document.getElementById('root');
+const root = ReactDOM.createRoot(container);
+
+const RootComponent = () => <div>Hello From PluralSight!</div>
+root.render(
+  <RootComponent />
+)
+```
+
+Assuming that you have rendered UI that is interactive, meaning there are events in your app that update component state, everytime this happens, React on your behalf essentially calls render again and re-renders your app.
+
+In the todo app above as soon as we enter new item and click add item button, we get a new list item added to our unordered list. What happened for the third list item to be rendered?
+React had to use both the original virtual DOM previously saved as well as the new Virtual DOM created after the user pressed the Add Item button.
+
+React uses these two copies of Virtual DOMs to do a step called **Reconciliation**. This means that the old DOM is compared to the new DOM and only the elements that change are updated. For our case, it's very simple. The new Virtual DOM has just one more element in it than the previously stored old Virtual DOM. From the compare, the necessary DOM calls are created such that just one node can be added to the DOM and no full DOM re-render is needed.
+
+## Complex React APP Reconciliation
+In more complex APPs for example the Facebook website itself, you can imagine lots of elements can change and also the shape of the componenets can change. The challenge is to efficiently figure out what minimal diffs need to be applied to the browser to make the UI correct for the new updated DOM to be reflected.
+
+If you have n components or React Elements in your App's component tree that the complexity of calculating what components need to be updated is O(n^3). That means if you have 200 components in your app, you will potentially need to do 6 million comparisons to figure out the appropriate differences between your old and new DOM.
+
+Luckily there are lots of clever shortcuts the React team has figured out to make that comparison really fast and nowhere near to the O(n^3) calculations. Things like knowing what the React element type is can make a huge difference. That is all the todo items are the same type, where as the TodoItemList component is different type.
+
+Bottomline, the reconciliation step is very fast in real apps because of some awesome job React team has done in optimizing this step.
