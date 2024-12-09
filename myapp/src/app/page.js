@@ -1,6 +1,20 @@
-"use client";
 import React from "react";
-import { useState } from "react";
+import AddItemButton from "./add-item-button";
+import SharedDataProvider from "./shared-data-provider";
+import NumbersList from "./numbers-list";
+
+const numbers = [1, 2, 3, 4, 5];
+
+export default async function Home() {
+  return (
+    <div className="container">
+      <SharedDataProvider initialLastNumber={numbers[numbers.length - 1]}>
+        <NumbersList numbers={numbers} />
+        <AddItemButton increment={3} />
+      </SharedDataProvider>
+    </div>
+  );
+}
 
 function ListItems({ ints, addValue }) {
   const increment = 3;
@@ -11,18 +25,5 @@ function ListItems({ ints, addValue }) {
         return <li key={id}>{id}</li>;
       })}
     </>
-  );
-}
-
-export default function () {
-  const [ints, setInts] = useState([1, 2, 3]);
-  function addValue(incrementValue) {
-    const newVal = Math.max(...ints) + incrementValue;
-    setInts([...ints, newVal]);
-  }
-  return (
-    <ul>
-      <ListItems ints={ints} addValue={addValue} />
-    </ul>
   );
 }

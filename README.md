@@ -604,3 +604,277 @@ Since the node server is running basically the same javascript engine as is runn
 In future, we will likely see React Components running inside a separate process in the browser. That process could be running inside a **Web Worker**, it might be running with **Web Assembly**, also called **WASM** and it could be using a **Service Worker**, or for that matter, something not even invented yet.
 
 For now though, the only implementation available for running distributed React is using **Server Components** and **Client Components** with those server components running a node.
+
+## What's Behind Server Component Technology 
+Using just ```index.html``` and pure javascript file with no react, we served a webpage to a browser with a simple numbers list. It did it by generating 100% of the list inside the javascript and after the webpage loaded, that JavaScript wrote that list directly to the browser DOM. Our point back then was to demonstrate a pure SPA.
+
+Later we converted it to React App, also a SPA and added a button that when clicked, added more numbers to the list. Let's take a step backwards and create a pure javascript app and add to it a button with a simple event handler that adds numbers to the list when clicked.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <div id="root"></div>
+    <script>
+        const rootElement = document.getElementById("root");
+        const numbers = [1, 2, 3, 4, 5];
+        
+        const generateListHTML = (numbers) => `
+            <ul>
+                ${numbers.map((number) => `<li>${number}</li>`).join("")}    
+            </ul>
+        `;
+        
+        const generateButtonHTML = () => `
+            <button id="addItemButton">Add Item</button>
+        `;
+        rootElement.innerHTML = `
+            ${generateListHTML(numbers)}${generateButtonHTML()}
+        `;
+        const addItemButton = document.getElementById("addItemButton");
+        const incrementValue = 3;
+        const addItem = () => {
+            const newNumber = numbers[numbers.length - 1] + incrementValue;
+            numbers.push(newNumber);
+            rootElement.querySelector("ul")
+                .insertAdjacentHTML("beforeend", `<li>${newNumber}</li>`)
+        };
+        addItemButton.addEventListener("click", addItem);
+    </script>
+</body>
+</html>
+```
+
+Now we have single HTML file that has exact same capability. As this HTML page has nothing to do with any particular server, that is it doesn't require a node server to run, we can simply invoke VS Code plugin LiveServer.
+
+We did this exercise to understand how a React App that is served from a node server and includes React Server Components can first render a static HTML page directly to the browser, and then subsequently, run in SPA mode processing browser events that is like button clicks and update the DOM to reflect changes or new numbers being added to the list.
+
+Let's evelove this JavaScript to replicate the rendering scenario we just described and then we will do the exact same thing in React and it will help understand what React is doing under the cover for us.
+
+```js
+const http = require("http");
+
+const server = http.createServer(async (req, res) => {
+  res.setHeader("Content-Type", "text/html");
+  res.writeHead(200);
+  res.end(`
+    <!DOCTYPE html>
+        <html lang="en">
+        <body>
+            <div id="root"></div>
+            <script>
+                const rootElement = document.getElementById("root");
+                const numbers = [1, 2, 3, 4, 5];
+                const generateListHTML = (numbers) =>  \`
+                    <ul>
+                        \${numbers.map((number) => \`<li>\${number}</li>\`).join("")}    
+                    </ul>
+                \`;
+                const generateButtonHTML = () => \`
+                    <button id="addItemButton">Add Item</button>
+                \`;
+                rootElement.innerHTML = \`
+                    \${generateListHTML(numbers)}\${generateButtonHTML()}
+                \`;
+                const addItemButton = document.getElementById("addItemButton");
+                const incrementValue = 3;
+                const addItem = () => {
+                    const newNumber = numbers[numbers.length - 1] + incrementValue;
+                    numbers.push(newNumber);
+                    rootElement.querySelector("ul")
+                        .insertAdjacentHTML("beforeend", \`<li>\${newNumber}</li>\`)
+                };
+                addItemButton.addEventListener("click", addItem);
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+server.listen(3000, "127.0.0.1", () => {
+  console.log("Server running at http://127.0.0.1:3000/");
+});
+```
+
+Now run node server as:
+```sh
+node server.js
+```
+
+Now we can hit http://127.0.0.1:3000 at it serves the same html. So now same compiler is running in node server instead of in browser, we can refactor some of this JavaScript passed down to the browser and bring it back to the server.
+
+```js
+const http = require("http");
+
+const numbers = [1, 2, 3, 4, 5];
+const generateListHTML = (numbers) => `
+    <ul>
+        ${numbers.map((number) => `<li>${number}</li>`).join("")}    
+    </ul>
+`;
+const generateButtonHTML = () => `
+    <button id="addItemButton">Add Item</button>
+`;
+
+const server = http.createServer(async (req, res) => {
+  const initialListHTML = generateListHTML(numbers);
+  const buttonHTML = generateButtonHTML();
+  res.setHeader("Content-Type", "text/html");
+  res.writeHead(200);
+  res.end(`
+    <!DOCTYPE html>
+        <html lang="en">
+        <body>
+            <div id="root">${initialListHTML}${buttonHTML}</div>
+            <script>
+              const numbers = ${JSON.stringify(numbers)};
+                const rootElement = document.getElementById("root");
+                const addItemButton = document.getElementById("addItemButton");
+                const incrementValue = 3;
+                const addItem = () => {
+                    const newNumber = numbers[numbers.length - 1] + incrementValue;
+                    numbers.push(newNumber);
+                    rootElement.querySelector("ul")
+                        .insertAdjacentHTML("beforeend", \`<li>\${newNumber}</li>\`)
+                };
+                addItemButton.addEventListener("click", addItem);
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+server.listen(3000, "127.0.0.1", () => {
+  console.log("Server running at http://127.0.0.1:3000/");
+});
+```
+
+Look how we have moved generateListHTML and generateButtonHTML out as a variable and used as a variable. This means that when request is made from the browser to this node server, the first thing that happens before anything is downloaded to the local browser is that the HTML to be rendered is figured out. Then in the code downloaded to the browser, specifically inside the root div, these variables are inserted.
+
+This means on the First page downloaded to the browser, instead of just empty div rendering with id root, that div now contains the full list of initial numbers, as well as the HTML for the button.
+
+Next to support our AddItem button being clicked, we do need to know the initial array of numbers in our Browser JavaScript, so an easy way to get it is to create a new const named numbers and then json encode the javascript array, so that the JavaScript code that gets downloaded to the browser looks like a normal javascript array declaration.
+
+Restart the node server and look at the page source. Element with id root has already rendered unordered list in HTML. Since view-source looks at the downloaded HTML before any javascript runs you can be sure that browser user will immediately see the numbers list as fast as the page comes up. No waiting for JavaScript execution like we had with the pure single page app. Also notice the const numbers declaration in the Script tag.
+
+After clicking the addItem button we can see the items being added but if we look at the page-source we still see the 5 items but if we use chrome Debug Tool and inspect the page we can see all the dynamically added elements.
+
+## Convert a Server Rendered App is JS to React
+Above we developed code to show the basics of how to server render HTML and still use JavaScript to enhance it's interactivity. This works well for trivial example, but as Apps get more complex trying to keep track of what's running where gets really complicated with just JavaScript & DOM calls.
+
+Lets look at the exact same scenario but solve using React Server & Client component. **React Server & Client Components are 100% a React thing and not a toolchain like next.js thing**. 
+
+However, toolchain is involved in settings the basics like where the root element of your app is running and whether that element is a server or a client component. As we are using **next.js**, the rule when using **App Router** is the root element is always defined in a file named ```/app/page.js```, it could also be jsx, ts or tsx.
+
+Below are server components
+
+page.js
+```js
+import React from "react";
+import AddItemButton from "./add-item-button";
+import SharedDataProvider from "./shared-data-provider";
+import NumbersList from "./numbers-list";
+
+const numbers = [1, 2, 3, 4, 5];
+
+export default async function Home() {
+  return (
+    <div className="container">
+      <SharedDataProvider initialLastNumber={numbers[numbers.length - 1]}>
+        <NumbersList numbers={numbers} />
+        <AddItemButton increment={3} />
+      </SharedDataProvider>
+    </div>
+  );
+}
+
+function ListItems({ ints, addValue }) {
+  const increment = 3;
+  return (
+    <>
+      <button onClick={() => addValue(increment)}>Add Item</button>
+      {ints.map((id) => {
+        return <li key={id}>{id}</li>;
+      })}
+    </>
+  );
+}
+```
+
+numbers-list.js
+```js
+import NewNumbers from "./new-numbers";
+
+export default async function NumbersList({ numbers }) {
+  return (
+    <ul>
+      {numbers.map((number) => (
+        <li key={number}>{number}</li>
+      ))}
+      <NewNumbers />
+    </ul>
+  );
+}
+```
+
+By default it's server component otherwise we mention 'use client' for **Client Component**.
+
+Below are client components:
+
+new-numbers.js
+```js
+"use client";
+
+import { useSharedData } from "./shared-data-provider";
+
+export default function NewNumbers() {
+  const { newNumbers } = useSharedData();
+
+  return (
+    <>
+      {newNumbers.map((number) => (
+        <li key={number}>{number}</li>
+      ))}
+    </>
+  );
+}
+```
+
+shared-data-provider.js
+```js
+"use client";
+
+import React, { createContext, useContext, useState } from "react";
+
+const SharedDataContext = createContext();
+
+export function useSharedData() {
+  const contextValue = useContext(SharedDataContext);
+  if (!contextValue) {
+    throw new Error(
+      "useSharedData must be used within a " + "SharedDataProvider"
+    );
+  }
+  return contextValue;
+}
+
+export default function SharedDataProvider({ initialLastNumber, children }) {
+  const [newNumbers, setNewNumbers] = useState([]);
+
+  function addNewNumber(incrementValue) {
+    const lastNumber = newNumbers[newNumbers.length - 1] || initialLastNumber;
+    setNewNumbers([...newNumbers, lastNumber + incrementValue]);
+  }
+
+  return (
+    <SharedDataContext.Provider
+      value={{
+        newNumbers,
+        addNewNumber,
+      }}
+    >
+      {children}
+    </SharedDataContext.Provider>
+  );
+}
+```
