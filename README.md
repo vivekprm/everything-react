@@ -766,6 +766,8 @@ Lets look at the exact same scenario but solve using React Server & Client compo
 
 However, toolchain is involved in settings the basics like where the root element of your app is running and whether that element is a server or a client component. As we are using **next.js**, the rule when using **App Router** is the root element is always defined in a file named ```/app/page.js```, it could also be jsx, ts or tsx.
 
+<img width="565" alt="Screenshot 2024-12-09 at 2 35 14 PM" src="https://github.com/user-attachments/assets/6831a82a-2437-4dfc-a128-9e7f79353d03">
+
 Below are server components
 
 page.js
