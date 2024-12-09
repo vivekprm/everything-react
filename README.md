@@ -880,3 +880,17 @@ export default function SharedDataProvider({ initialLastNumber, children }) {
   );
 }
 ```
+
+Even though react version has lot of code compared to javascript version. Its obvious how scalable it is more complex applications.
+
+# How React Renders External Data From Sources Like Database
+When we talk about how React renders data, what we are really talking about is how the React library facilitates changes to the rendered HTML when async data changes over time.
+
+Everything we have talked about so far has to do with local browser events causing React to well, react to changes. Those changes were all driven by local component state updates. Expanding our thinking some, there is no reason that the state change has to come from a local browser event like clicking on a button. Those changes can just as easily come from an external source like for example, a database completing a query.
+
+With SPA there is no way to access database directly from the browser. Most common way to access a database from a browser is with the REST protocol meaning we have an endpoint on the internet that we make a get request to and what is returned is the resulting data.
+
+React Server Components run directly on a Node Server and of course all the HTML that they create are downloaded to the browser, but since the component itself is running on the server, it can directly access things like database calls.
+
+https://github.com/pkellner/pluralsight-what-is-react/tree/f4f8479f1958d427853efb5522c501d5db109f78
+
