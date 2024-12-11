@@ -1265,6 +1265,8 @@ What we can do is give HouseRow a way to set the state for App. As you know, onl
 
 Here is what we did in schema :
 
+<img width="1030" alt="Screenshot 2024-12-11 at 9 23 46 PM" src="https://github.com/user-attachments/assets/958f233d-1819-422c-ad30-a7331a704428" />
+
 On App we defined state, which provided the setSelectedHouse function. We passed it as prop to the HouseList. And HouseList renders HouseRow components that get the function too via prop. The function is passed by reference. So these are not copies of the function, they all refer to the same function.
 
 Now when a HouseRow is clicked, the function is called. By doing so, the state of the App component is changed, and all children re-render. The selectedHouse state no contains a House, so instead of HouseList, House is rendered.
