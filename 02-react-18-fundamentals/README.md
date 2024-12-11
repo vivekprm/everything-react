@@ -906,3 +906,348 @@ current here is equivalent to the value of counter most of the time, but when mu
 
 Props are read only and they shouldn't be changed by the component, so you are probably surprised to hear that "prop value can change". How does this work?
 What is a prop for one component is often state for another. Let's consider **HouseRow** component created earlier. For **HouseRow** house is a prop but for **HouseList** the house instance that is passed to **HouseRow** is part of it's state. What happens if **HouseList** does a call to **setHouses**, passing in a new house array instance, like we do in the **addHouse** function
+
+# Component Rendering & Side Effects
+
+Re-rendering means the component's function is executed again. It can be because of the state change or rendering of parent component.
+
+But that doesn't mean that entire component is refreshed in the Browser. React uses **Reconciliation** where the browser will only update the parts that were actually changed.
+
+React stores state internally by using in-memory arrays. So when a component uses two calls to useState, first one for the houses array and second one for the counter, it will keep array containing two elements. The first one contains the houses array and second one the counter value.
+That's the reason useState hook can't be called conditionally. Doing this will mess up this internal system of state keeping.
+
+## The Rendering Process
+
+Our demo application so far has this component hierarchy:
+
+We have an App component that renders the Banner & HouseList components and the HouseList component renders a number of HouseRow components. When the state of HouseList changes, it will re-render. That doesn't necessarily happen in that same millisecond. **React will first just flag the component and for performance reasons, it will just queue a render**. Then after a period of time, which appears instantaneous for humans, the actual rerendering will happen.
+
+React will walkthrough the tree of components, finding all components that need to be rendered. In this case it's only one i.e. HouseList. It will not only render the Flag component but also all the child components. Basically everything under HouseList component tree.
+
+It can have cascading effect of rerenders, is that a bad thing?
+Not necessarily. Remember reconciliation, the things that eat the most performance are the actual browser updates, and React minimizes those, but it's something to keep in mind when you design your application, if thousands of functions are fired in response to the change of one piece of state anywhere in your application, you can imagine that is not too good for performance.
+
+## Pure Functions & Memoizing Component
+
+React relies on Pure Functions to perform efficiently. **A pure function is a function that always returns the same result**. e.g.
+
+```js
+const returnNumber = () => 42;
+```
+
+Add function is also a pure function because as long as same value of a and b are used it returns the same result.
+
+```js
+const add = (a, b) => a + b;
+```
+
+Pure functions are:
+
+- Easy to test
+- Predicatable
+- Reliable
+- Cacheable
+
+All these benefits are what React needs to do it's rendering work efficiently. So **a component's function should be a pure function**. In component terms, that means that **given the same prop values and the same state, the function should always return the same JSX**.
+
+Despite that we saw that all the HouseRow components are re-rendered anyway when the state of it's parent, HouseList changes. But there is a way to memoize, cache the output for a component so that it doesn't re-render when it's prop value remains the same. It's done by wrapping the component with `React.memo`.
+
+Now, in addition to or instead of the **HouseRow** we already had, we can export the Memoized version.
+
+```js
+import currencyFormatter from "@/helpers/currencyFormatter";
+import React from "react";
+
+const HouseRow = ({ house }) => {
+  return (
+    <tr>
+      <td>{house.address}</td>
+      <td>{house.country}</td>
+      <td>{currencyFormatter.format(house.price)}</td>
+    </tr>
+  );
+};
+
+const HouseRowMem = React.memo(HouseRow);
+export default HouseRow;
+export { HouseRowMem };
+```
+
+Now if we have a break point in **HouseRow** and click Add button, breakpoint is hit only once. So only the new row is rendered, since the prop value for other **HouseRow** remained the same.
+
+Maybe you'll have tendency now to wrap every component with **React.memo**. However **React.memo** has its overhead in terms of performance, and React's rerendering cycle is highly optimized. Therefore you should only use it when:
+
+- It's faster.
+- When you can measure it's faster.
+  - You can do that using profile tool that comes with React Development Plugin.
+- In general it's faster only when it's a pure functional component you're wrapping and when it renders often with the same prop values.
+- JSX returned shouldn't be trivial, like our HouseRow component.
+  - Because it's so small and React is so optimized that performance gain in this case is insignificant.
+
+Beware that **React.memo** will only shallowly compare complex objects when they are passed in as props.
+
+https://react.dev/reference/react/memo
+
+## Side Effects & Effect Hook
+
+Pure functions might sound straight forward enough. But in practice we have to do things in components that are not so predictable and reliable. And that's okay as long as you keep in mind that these operations should be set aside. They should not be part of the pure function. Such operations are called **Side Effects**.
+
+Basically whenever we reach out to something that is not within the realm of React, we have to use an effect because the results are unpredictable and may be unreliable.
+
+Examples of Effect are:
+
+- API Interaction
+- Use Browser APIs (e.g. document, window)
+- Using timing functions (e.g. setTimeout)
+
+### Effect Hook
+
+To perform an effect in the function of a component, the effect hook is used.
+
+```js
+useEffect(() => {
+  // perform the effect
+});
+```
+
+**useEffect** takes a function as a parameter. This function will be executed automatically after React is done running the component's pure function and the browser has been updated.
+
+In the function, the effect is performed. So we can fetch data from an API here for example. So we can get rid of the houseArray in HouseList component and initialize the houseArray state with empty array.
+
+fetch is an asynchrnous operation it returns a promise. So ideally we want to put await in front of fetch and capture resulting response object into a variable. But to make this work, we have to make the function passed into useEffect to aync. But this will make function return a promise and useEffect can't work with that.
+
+Instead we can wrap the call to fetch in extra function that is async and call that.
+
+```js
+useEffect(() => {
+  const fetchHouses = async () => {
+    const response = await fetch("/api/houses");
+    const houses = await response.json();
+    setHouses(houses);
+  };
+  fetchHouses();
+});
+```
+
+Let's add the api in pages/api the js files that you see doesn't run in browser, they run on the server using nodejs.
+
+Developing client-side code together with server-side code like this is pecific to next.js. But we don't want complexity of writing an api and talking to database etc. Instead add a json file called houses.json, which is read and manipulated by API code.
+
+Implementing an API like this isn't something you should do in production. It's just for demo purposes.
+
+Problem is when we press Add button the extra row appears just briefly, let's return to the code to investigate what's going on. When the house list is initially rendered houses state is set to an empty array. When useEffect is called, the function contained in the useEffect will not be called immediately. First rest of the pure function executes, so the JSX is returned without any HouseRows because the houses array is empty.
+
+Now React will run the effect, so call goes to API, result is read and we call setHouses to change the houses state. Now the component re-renders and function will be re-executed. So we start at the first line again because it's re-render the initial value of the state is ignored, instead existing state is used, the houses we fetched earlier through API. Then again useEffect containing function doesn't fire yet. We first return the JSX, which will now contain the HouseRows and browser is updated to show them.
+Now the effect fires again fetching the houses, changing the state causing re-render, the state now contains the newly fetched houses which is the same list as before. SO the JSX returned is exactly the same and React determines that the browser doesn't have to be updated so it remanins static in the browser. After that effect function is called again fetching the houses, changing the state causing the rerender. We are stuck in infinite loop.
+
+The solution to this is to instruct react to only run the useEffect function in certain cases. That's done by specifying a dependency array.
+
+```js
+const [counter, setCounter] = useState(0);
+useEffect(() => {
+  document.title = counter;
+});
+```
+
+Do we need the effect to run everytime a component rerenders?
+No, just when the component is initially rendered and when the counter changes. To make that happen we pass the dependency array as the second parameter to use effect as below:
+
+```js
+const [counter, setCounter] = useState(0);
+useEffect(() => {
+  document.title = counter;
+}, [counter]);
+```
+
+But in the case of the effect in HouseList, there is no dependency. All we want is that effect function is executed only once, just when the component initially renders. To make that happen we can specify an empty dependency array.
+
+```js
+useEffect(() => {
+  const fetchHouses = async () => {
+    const response = await fetch("/api/houses");
+    const houses = await response.json();
+    setHouses(houses);
+  };
+  fetchHouses();
+}, []);
+```
+
+What if there are multiple effects in a component that have to be executed.
+
+```js
+const [counter, setCounter] = useState(0);
+useEffect(() => {
+  document.title = counter;
+}, [counter]);
+
+useEffect(() => {
+  // fetch from API
+}, []);
+```
+
+In that case don't try to squeeze them into one call to useEffect. Multiple calls are supported, and they can each have their own dependency array.
+
+And if needed you can also return a function from the effect to clean things up.
+
+```js
+useEffect(() => {
+  // subscribe
+  return () => {
+    // unsubscribe
+  };
+}, []);
+```
+
+You can also return a function from the effect to clean things up.
+What if you, for example, are subscribing to an event stream from some API? You will want to unsubscribe when the component is unmounted. That means removed from the UI. You can do that in this function. But beware that this function is not only called when a component is removed, it is also called everytime before the effect function fires again. In this case that won't happen. But if you have dependencies in the dependency array or no dependency array at all, keep this in mind.
+
+### Memo Hook
+
+It could be handy to optimize the performance of your components. We have already seen that component output can be memoized but values inside components can be too.
+
+Lets say a calculation has to be done involving a list of houses that is quite time-consuming
+
+```js
+const result = timeConsumingCalculation(houses);
+```
+
+We could put this line of code into our component but now the calculation will be done on every re-render as we learned re-render can occur frequently, this will slow down the application.
+
+To gain performance, we can memoize the value that is returned using the memo hook.
+
+```js
+const result = useMemo(() => {
+  return timeConsumingCalculation(houses);
+}, [houses]);
+```
+
+The parameters of the useMemo hook are very much like the ones from useEffect. The first parameter is a function that does the calculation. The calculation will occur when the component is first rendered and when houses changes because houses is in the dependency array, that is the second parameter.
+If the component is re-rendered without a change to houses `useMemo` will simply return the value that was calculated previously without running the function.
+
+So Is it a good idea to just wrap any operation in a useMemo call? Doesn't hurt right?
+Well, it does because of the overhead of the hook. Again you should measure if this is really faster before putting it in.
+
+### Ref Hook
+
+The Ref hook can be used to store values that are persisted between renders. That sounds familiar because that's what state does. **The difference is that modifying a ref value doesn't cause a re-render**. If for example you want to count number of time HouseRow component has rendered, we can't use counter state and call setCounter and useEffect because that will trigger a re-render.causing an infinite loop.
+
+Instead we can call useRef hook with an initial value of 0. useRef returns an object that has a current property that contains the current value. This value can be modified directly and it won't cause re-render.
+
+```js
+const [houses, setHouses] = useState([]);
+const counter = useRef(0);
+useEffect(() => {
+  const fetchHouses = async () => {
+    const response = await fetch("/api/houses");
+    const houses = await response.json();
+    setHouses(houses);
+  };
+  fetchHouses();
+  counter.current++;
+}, []);
+```
+
+When a reference type is passed to useRef the ref hook guarantees that the same reference is returned in the current property across re-renders. May be that's why hook is called Ref.
+
+It's also often used to gain access to JavaScript DOM objects and components
+
+```js
+const TextInputWithFocusButton = () => {
+  const inputEl = useRef(null);
+  const onButtonClick = () => inputEl.current.focus();
+  return (
+    <>
+      <input ref={inputEl} type="text" />
+      <button onClick={onButtonClick}>Focus The Input</button>
+    </>
+  );
+};
+```
+
+in JSX inputEl is overwritten with the input DOM element object. We can access it by reading the current property of the ref. In this case, focus is called on the input element, but all JavaScript members available on DOM objects are available here. This object is the same object you get when you make call using `document.getElementById` for example, in any javascript application.
+
+# Conditional Rendering & Shared State
+
+You can conditionally apply almost anything in JSX. Let's say we want to conditionally apply
+
+```js
+const HouseRow = ({ house }) => {
+  let priceTd;
+  if (house.price < 50000)
+    priceTd = <td>{currencyFormatter.format(house.price)}</td>;
+  else
+    priceTd = (
+      <td className="text-primary">{currencyFormatter.format(house.price)}</td>
+    );
+  return (
+    <tr>
+      <td>{house.address}</td>
+      <td>{house.country}</td>
+      {priceTd}
+    </tr>
+  );
+};
+```
+
+But in this case we can save some lines of code using an expression, something like:
+
+```js
+<td className={`${house.price >= 500000 ? "text-primary" : ""}`}>
+  {currencyFormatter.format(house.price)}
+</td>
+```
+
+We can also render price td only when price is present:
+
+```js
+{
+  house.price && (
+    <td className={`${house.price >= 500000 ? "text-primary" : ""}`}>
+      {currencyFormatter.format(house.price)}
+    </td>
+  );
+}
+```
+
+Lets add House.js to render house details like longer description and picture when we click on any row in HouseList.
+
+When a row is clicked the list is replaced by another component. We can make that happen by rendering the HouseList and a new component called House conditionally.
+
+We will add House component in house.js
+
+```js
+import defaultPhoto from "@/helpers/defaultPhoto";
+import React from "react";
+
+export const House = ({ house }) => {
+  return (
+    <div className="row">
+      <div className="col-6">
+        <div className="row">
+          <img
+            className="img-fluid"
+            src={
+              house.photo ? `./houseImages/${house.photo}.jpeg` : defaultPhoto
+            }
+            alt="House pic"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+It uses house prop to display all data of an individual house. There is nothing really new in this component.
+photo property on the house that is returned from the API is a string. If there is a photo defined the value will be truthy. In that case using the photo property, we look for the JPEG image in the houseImages directory. We have added houseImages directory with the images to public. When the photo property isn't truthy something called defaultPhoto is used instead. Which we have added in the helpers directory as:
+
+```js
+const defaultPhoto = "data:image/jpeg;base64,base64";
+
+export default defaultPhoto;
+```
+
+For a public facing production app you'll probably want to cache the photo. Return a physical image instead.
+
+It still need a parent component that can render it. Which one will be suitable?
+We want to replace HouseList with House somehow and HouseList is rendered in the App root component and that would be the place to do it.
