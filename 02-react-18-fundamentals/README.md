@@ -1251,3 +1251,65 @@ For a public facing production app you'll probably want to cache the photo. Retu
 
 It still need a parent component that can render it. Which one will be suitable?
 We want to replace HouseList with House somehow and HouseList is rendered in the App root component and that would be the place to do it.
+Here we render either House or HouseList based on state value.
+
+```js
+const [selectedHouse, setSelectedHouse] = useState();
+```
+
+Here we are not passing anything in useState, that means selectedHouse initially will be undefined.
+
+If selectedHouse is truthy we render House else HouseList. selecteHouseRow state should change when a HouseRow is clicked in HouseList. The App Component can't do it. It has no way of knowing that the HouseRow which is a couple of component levels down is clicked. So capturing that event somehow in App in not an option.
+
+What we can do is give HouseRow a way to set the state for App. As you know, only way to change state is to call the set function.
+
+Here is what we did in schema :
+
+On App we defined state, which provided the setSelectedHouse function. We passed it as prop to the HouseList. And HouseList renders HouseRow components that get the function too via prop. The function is passed by reference. So these are not copies of the function, they all refer to the same function.
+
+Now when a HouseRow is clicked, the function is called. By doing so, the state of the App component is changed, and all children re-render. The selectedHouse state no contains a House, so instead of HouseList, House is rendered.
+
+app.js
+
+```js
+const App = () => {
+  const [selectedHouse, setSelectedHouse] = useState();
+  return (
+    <>
+      <Banner>Providing houses all over the world.</Banner>
+      {selectedHouse ? (
+        <House house={selectedHouse} />
+      ) : (
+        <HouseList selectHouse={setSelectedHouse} />
+      )}
+    </>
+  );
+};
+export default App;
+```
+
+houseList.js
+
+```js
+...
+<tbody>
+  {houses.map((h) => (
+    <HouseRow key={h.id} house={h} selectHouse={selectHouse} />
+  ))}
+</tbody>
+...
+```
+
+houseRow.js
+
+```js
+const HouseRow = ({ house, selectHouse }) => {
+  return (
+    <tr onClick={() => selectHouse(house)}>
+      <td>{house.address}</td>
+      <td>{house.country}</td>
+      <td>{currencyFormatter.format(house.price)}</td>
+    </tr>
+  );
+};
+```
