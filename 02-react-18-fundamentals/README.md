@@ -17,7 +17,7 @@ React helps, it brings structure with components.
 - Components are JavaScript functions that return JSX, a syntax that seems like HTML.
 - JSX looks like HTML but it is not, it's just an alternative way to write JavaScript.
 - JSX stands for JavaScript Extension. It extends the JavaScript syntax to make it easier for us developers to write UIs in an intuitive hierachical way.
-- Browser doesn't understand JSX. JSX has to be transformed by a tool to JavaScript. The typical tool for that is called **Babel**. We can go to Babel website and try out how it converts JSX to JavaScript.
+- Browser doesn't understand JSX. JSX has to be transformed by a tool to JavaScript. The typical tool for that is called **Babel**. We can go to [Babel website](https://babeljs.io/repl#?browsers=defaults%2C%20not%20ie%2011%2C%20not%20ie_mob%2011&build=&builtIns=false&corejs=3.21&spec=false&loose=false&code_lz=KYDwDg9gTgLgBAE2AMwIYFcA29noHYDGMAlhHnABIQC2wAFAJQDeAUHHFMDOlOXW-zgAeAIJgwAPiEB6MZIEMWAXyA&debug=false&forceAllTransforms=false&modules=false&shippedProposals=false&evaluate=false&fileSize=false&timeTravel=false&sourceType=module&lineWrap=true&presets=env%2Creact%2Cstage-2&prettier=false&targets=&version=7.26.4&externalPlugins=&assumptions=%7B%7D) and try out how it converts JSX to JavaScript.
 
 ## JSX to Markup
 
