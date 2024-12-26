@@ -1269,6 +1269,10 @@ On App we defined state, which provided the setSelectedHouse function. We passed
 
 Now when a HouseRow is clicked, the function is called. By doing so, the state of the App component is changed, and all children re-render. The selectedHouse state no contains a House, so instead of HouseList, House is rendered.
 
+Because the whole application re-renders, when the state in the root component changes, it is not wise to have too much of it there. Just have state in the root component that doesn't fit anywhere else. The state we have here is a good example since this is state that controls the overall composition of components.
+
+**To prevent unnecessary re-renders and making the application overly complicated, only share state between components when needed**. Place state as low as you can go in the component hierarchy.
+
 app.js
 
 ```js
@@ -1313,3 +1317,332 @@ const HouseRow = ({ house, selectHouse }) => {
   );
 };
 ```
+
+## Mounting & Unmounting
+
+When components appear in browser DOM, they are mounted, their state is initialized and effects run. When the application starts, all components for the initial composition are mounted. When HouseRow is clicked, HouseList and it's rows are removed from the DOM. They are unmounted. It's important to realize that with that all state of these components is destroyed. That sounds rather permanent.
+But at some point, the user of the application may decide to return to the list of houses. We haven't implemented that functionality yet but when we do, HouseList and it's rows will be mounted again. Since all memory of the previous HouseList and HouseRows is destroyed, the components will be initialized as if they never existed before. So the state initializes with the initial value, and the effects will run again.
+
+So for HouseList, that means that houses will be refetched from the API. To have more control around what child components put into the state, a wrapper can be used.
+
+## Function Wrappers & The Callback Hook
+
+HouseList and HouseRow get the setSelectedHouse function via a prop, and that is the function that is coming from the call to the state hook in App. Everything works perfectly as it is now, but we're basically giving full control of the selected house state to these child components.
+
+May be they will accidentally won't put in a house object, but another object that is not related or some string or number. When this application gets larger, this might lead to serious bugs. To remedy that, we can create a wrapper function that accepts a house objects and does the call to **setSelectedHouse** and instead of passing setSelectedHouse to HouseList we now pass wrapper to it.
+
+```js
+const App = () => {
+  const [selectedHouse, setSelectedHouse] = useState();
+  const setSelectedHouseWrapper = (house) => {
+    setSelectedHouse(house);
+  };
+  return (
+    <>
+      <Banner>Providing houses all over the world.</Banner>
+      {selectedHouse ? (
+        <House house={selectedHouse} />
+      ) : (
+        <HouseList selectHouse={setSelectedHouseWrapper} />
+      )}
+    </>
+  );
+};
+```
+
+The advantage of this approachis that the App component now still is in full controlof its own state. The **setSelectedHouse** function remains encapsulated in the component. We can now add checks to the wrapper function to make sure the thing that is passed into the function is really a house.
+
+There is something to keep in mind when creating functions like this though.
+
+- On each re-render the function object is created, creating a new reference.
+  - That's not a problem unless the function is passed into a component that is memoized with React.memo. Because the object reference changes, the components will re-render maybe unintentionally.
+  - Another example is **when the function is used in the dependency array of an effect, for example, the effect's function will execute**. To prevent that, **the callback hook (i.e. useCallback) can be used**. This will preserve the same function reference across re-renders, unless something in it's dependency array changes, it memoizes the containing function object.
+    - It comes with some overhead, so you should only use it when it's really necessary.
+
+```js
+const [selectedHouse, setSelectedHouse] = useState();
+const setSelectedHouseWrapper = useCallback((house) => {
+  setSelectedHouse(house);
+}, []);
+```
+
+In this case, the containing function will only be created when the component is mounted. For every re-render, the reference remains the same. SetState functions, such as our setSelectedHouse, never have to be wrapped with **useCallback** because React will make sure they are not recreated on every render.
+
+## Delegating State to a Custom Hook
+
+Right now **HouseList** is fetching houses data, and it is displaying it. Introducing a custom hook is good way to separate these two concerns. Create a directory **hooks** and add **useHouses.js**. Remember hooks should always have the **use** prefix in their name. A hook is just a function like a component, which is exported by a module. The difference is that hook doesn't return JSX, but it can use other hooks. hook function can return the houses state.
+
+useHouses.js
+
+```js
+import { useEffect, useState } from "react";
+
+const useHouses = () => {
+  const [houses, setHouses] = useState([]);
+  useEffect(() => {
+    const fetchHouses = async () => {
+      const response = await fetch("/api/houses");
+      const houses = await response.json();
+      setHouses(houses);
+    };
+    fetchHouses();
+  }, []);
+  return { houses, setHouses };
+};
+
+export default useHouses;
+```
+
+So let's modify the houseList.js
+
+```js
+import React from "react";
+import HouseRow from "./houseRow";
+import useHouses from "@/hooks/useHouses";
+
+const HouseList = ({ selectHouse }) => {
+  const { houses, setHouses } = useHouses();
+  const addHouse = () => {
+    setHouses([
+      ...houses,
+      {
+        id: 3,
+        address: "32 Valley Way, New York",
+        country: "USA",
+        price: 1000000,
+      },
+    ]);
+  };
+  return (
+    <>
+      <div className="row mb-2">
+        <h5 className="themeFontColor text-center">
+          Houses currently on the market
+        </h5>
+      </div>
+      <table className="table table-hover">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Country</th>
+            <th>Asking Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {houses.map((h) => (
+            <HouseRow key={h.id} house={h} selectHouse={selectHouse} />
+          ))}
+        </tbody>
+      </table>
+      <button className="btn btn-primary" onClick={addHouse}>
+        Add
+      </button>
+    </>
+  );
+};
+
+export default HouseList;
+```
+
+Of-course you are also free to create a wrapper function for setHouses in the hook.
+
+\*\*A custom hook is a function which can accept any parameters you want. It can also return anything you want. When you return a hook's state the component that uses the custom hook will re-render when the state changes. This gives us React developers a great amount of flexibility. We can separate different parts of component functionality to prevent huge component function.
+
+Since custom hook is separate from the component itself we can reuse it. But keep in mind that when a custom hook is reused the state for each call to it is isolated. That means **if useHouses will be used in another component that would get it's own house state that is separate from the houses state in HouseList.**.
+
+In the case of **useHouses** that would mean that for the other component, the houses will be fetched from the API again. But we will get into **a way to share state globally with a feature called context**.
+
+### Adding Additional State of a Custom Hook
+
+We are making our custom hook a bit more interesting and the user interface a bit more user-friendly. Rightnow, there is no indication that the application is loading something from the API. The user just sees an empty table for a second. To change that add `loadingStatus.js` file in helpers directory, which exports a simple object with properties that contain all the possible loading statuses.
+
+```js
+const loadingStatus = {
+  loaded: "loaded",
+  isLoading: "Loading...",
+  hasErrored: "An error occured while loading",
+};
+
+export default loadingStatus;
+```
+
+Let's also add a new Component, **LoadingIndicatore**, it takes loadingState prop and displays it.
+
+```js
+import React from "react";
+
+export const LoadingIndicator = ({ loadingState }) => {
+  return <h3>{loadingState}</h3>;
+};
+```
+
+Now in the useHouses hook introduce a new state called loadingState, which we keep upto date while loading.
+
+```js
+import loadingStatus from "@/helpers/loadingStatus";
+import { useEffect, useState } from "react";
+
+const useHouses = () => {
+  const [houses, setHouses] = useState([]);
+  const [loadingState, setLoadingState] = useState(loadingStatus.isLoading);
+  useEffect(() => {
+    const fetchHouses = async () => {
+      try {
+        setLoadingState(loadingStatus.isLoading);
+        const response = await fetch("/api/houses");
+        const houses = await response.json();
+        setHouses(houses);
+        setLoadingState(loadingStatus.loaded);
+      } catch {
+        setLoadingState(loadingStatus.hasErrored);
+      }
+    };
+    fetchHouses();
+  }, []);
+  return { houses, setHouses, loadingState };
+};
+
+export default useHouses;
+```
+
+Now in houseList.js we can export loadingState and use it.
+
+```js
+import React from "react";
+import HouseRow from "./houseRow";
+import useHouses from "@/hooks/useHouses";
+import loadingStatus from "@/helpers/loadingStatus";
+import { LoadingIndicator } from "./loadingIndicator";
+
+const HouseList = ({ selectHouse }) => {
+  const { houses, setHouses, loadingState } = useHouses();
+
+  if (loadingState != loadingStatus.loaded) {
+    return <LoadingIndicator loadingState={loadingState} />;
+  }
+  const addHouse = () => {
+    setHouses([
+      ...houses,
+      {
+        id: 3,
+        address: "32 Valley Way, New York",
+        country: "USA",
+        price: 1000000,
+      },
+    ]);
+  };
+  return (
+    <>
+      <div className="row mb-2">
+        <h5 className="themeFontColor text-center">
+          Houses currently on the market
+        </h5>
+      </div>
+      <table className="table table-hover">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Country</th>
+            <th>Asking Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {houses.map((h) => (
+            <HouseRow key={h.id} house={h} selectHouse={selectHouse} />
+          ))}
+        </tbody>
+      </table>
+      <button className="btn btn-primary" onClick={addHouse}>
+        Add
+      </button>
+    </>
+  );
+};
+
+export default HouseList;
+```
+
+It is also possible to return null in place of LoadingInticator, in that case it will hide itself from rendering.
+
+### Increasing the Reusability of Custom Hook
+
+In near future other components will need to fetch from the API using other URLs. This loading functionality is now fixed to fetching just list of houses. It would be great if we could somehow reuse this loading functionality, for example for a new component called Bids, which we will introduce later. TO facilitate that, we're adding a more generic hook called **useGetRequest**. It takes a URL for the request as a parameter
+
+```js
+import loadingStatus from "@/helpers/loadingStatus";
+import { useState } from "react";
+
+const useGetRequest = (url) => {
+  const [loadingState, setLoadingState] = useState(loadingStatus.isLoading);
+
+  const get = async () => {
+    setLoadingState(loadingStatus.isLoading);
+    try {
+      const rsp = await fetch(url);
+      const result = await rsp.json();
+      setLoadingState(loadingStatus.loaded);
+      return result;
+    } catch {
+      setLoadingState(loadingStatus.hasErrored);
+    }
+  };
+  return { get, loadingState };
+};
+
+export default useGetRequest;
+```
+
+Now in useHouses hook we can remove loadingState and modify it as:
+
+```js
+const useHouses = () => {
+  const [houses, setHouses] = useState([]);
+  const { get, loadingState } = useGetRequest("/api/houses");
+  useEffect(() => {
+    const fetchHouses = async () => {
+      const houses = await get();
+      setHouses(houses);
+    };
+    fetchHouses();
+  }, [get]);
+  return { houses, setHouses, loadingState };
+};
+```
+
+We see a warning, because we are using get function in useEffect, we should include it in dependency array. It also mentions the option to remove dependency array altogether, but that's not an option for us because that would cause useEffect to fire on every re-render, so lt's put in get in dependency array.
+
+When we try things out, it doesn't seem to work correctly. There is a constant re-render going on while the loading indicator stays on and the API is queried continuously. Let's try to figure it ut step by step.
+
+HouseList calls useHouses, which will trigger the effect in that hook, we wait for the Get request to finish and update the state but now multiple HouseList rerenders have happened. First the loadingState changes from loading to loaded and then the houses state is updated. When the HouseList re-renders it will call the **useHouses** again and useHouses call **useGetRequest**. Because **useGetRequest** is called again, the **get** function is recreated. Remember a function is just an object and we are getting a new reference here. But the **get** funtion is in dependency array of **useEffect** and **useHouses**.
+
+The function in **useEffect** is called again, which causes re-renders where the **get** function is re-recreated again, causing a re-render. In short, another in-finite loop.
+We can solve this by using the **useCallback** hook with the **get** function with a dependency array that has th URL. It has to be in there because it's an external dependency.
+
+```js
+import loadingStatus from "../helpers/loadingStatus";
+import { useCallback, useState } from "react";
+
+const useGetRequest = (url) => {
+  const [loadingState, setLoadingState] = useState(loadingStatus.isLoading);
+
+  const get = useCallback(async () => {
+    setLoadingState(loadingStatus.isLoading);
+    try {
+      const rsp = await fetch(url);
+      const result = await rsp.json();
+      setLoadingState(loadingStatus.loaded);
+      return result;
+    } catch {
+      setLoadingState(loadingStatus.hasErrored);
+    }
+  }, [url]);
+  return { get, loadingState };
+};
+
+export default useGetRequest;
+```
+
+This will ensure that **get** function object isn't re-created but the same reference is used across re-renders unless the URL changes. But since every call to useGetRequest is a request to one particular URL, it's okay.
+
+You could argue if the **useHouses** hook is still needed?
+You could put it's **useEffect** call in the **HouseList** component again and remove a level of abstraction. It's upto us.
