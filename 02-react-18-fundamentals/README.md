@@ -2484,3 +2484,169 @@ When children call such a function, you could say that they are swimming against
 While going through the all design steps for the whole application, we discovered that the functionality to list bids and to add them should be separated. We also saw that the two components should be siblings with the **House** component as the parent and that on that component level the bid's state should live. And there is one other piece of state for the new bid that should be in the **AddBid** component.
 
 Now let's implement the design changes.
+First rename **bids.js** to **bidsList.js**, which accurately describes what it's only function should be.
+Bid state shouldn't be here anymore so it can be removed. Instead we accept a prop with bids instead of house prop and remove the **emptyBid** object as well as the newBidState, the loadingIndicator and onBidSubmitClick. We can get rid of the JSX where Bid is added. So new `bidList.js` looks like below:
+
+```js
+import useBids from "../hooks/useBids";
+
+const { default: loadingStatus } = require("../helpers/loadingStatus");
+const { useState } = require("react");
+const { LoadingIndicator } = require("./loadingIndicator");
+const { default: currencyFormatter } = require("../helpers/currencyFormatter");
+
+const BidList = ({ bids }) => {
+  return (
+    <div className="row mt-4">
+      <div className="col-12">
+        <table className="table table-sm">
+          <thead>
+            <tr>
+              <th>Bidder</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bids.map((b) => (
+              <tr key={b.id}>
+                <td>{b.bidder}</td>
+                <td>{currencyFormatter.format(b.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default BidList;
+```
+
+A new component called **AddBid** accepts a house as a prop because it has to know for which house the bid should be added and it needs a function with which it can add a bid. This will enable us to notify the parent component that a bid should be added, effectively showing an example of inverse data flow.
+
+```js
+import React, { useState } from "react";
+
+export const AddBid = ({ house, addBid }) => {
+  const emptyBid = {
+    houseId: house.id,
+    bidder: "",
+    amount: 0,
+  };
+  const [newBid, setNewBid] = useState(emptyBid);
+  const onBidSubmitClick = () => {
+    addBid(newBid);
+    setNewBid(emptyBid);
+  };
+  return (
+    <div className="row">
+      <div className="col-5">
+        <input
+          id="bidder"
+          className="h-100"
+          type="text"
+          value={newBid.bidder}
+          onChange={(e) => setNewBid({ ...newBid, bidder: e.target.value })}
+          placeholder="Bidder"
+        />
+      </div>
+      <div className="col-5">
+        <input
+          id="amount"
+          className="h-100"
+          type="number"
+          value={newBid.amount}
+          onChange={(e) =>
+            setNewBid({ ...newBid, amount: parseInt(e.target.value) })
+          }
+          placeholder="Amount"
+        />
+      </div>
+      <div className="col-2">
+        <button className="btn btn-primary" onClick={onBidSubmitClick}>
+          Add
+        </button>
+      </div>
+    </div>
+  );
+};
+```
+
+In House, we now render BidList providing the value for BidsProp
+
+```js
+import defaultPhoto from "../helpers/defaultPhoto";
+import React, { useContext } from "react";
+import { navigationContext } from "./app";
+import BidList from "./bidList";
+import currencyFormatter from "../helpers/currencyFormatter";
+import { AddBid } from "./addBid";
+import useBids from "../hooks/useBids";
+import loadingStatus from "@/helpers/loadingStatus";
+import { LoadingIndicator } from "./loadingIndicator";
+
+const House = () => {
+  const { param: house } = useContext(navigationContext);
+  const { bids, loadingState, addBid } = useBids(house.id);
+
+  if (loadingState != loadingStatus.loaded) {
+    return <LoadingIndicator loadingState={loadingState} />;
+  }
+  return (
+    <div className="row">
+      <div className="col-6">
+        <div className="row">
+          <img
+            className="img-fluid"
+            src={
+              house.photo ? `./houseImages/${house.photo}.jpeg` : defaultPhoto
+            }
+            alt="House pic"
+          />
+        </div>
+      </div>
+      <div className="col-6">
+        <div className="row mt-2">
+          <h5 className="col-12">{house.country}</h5>
+        </div>
+        <div className="row">
+          <h3 className="col-12">{house.address}</h3>
+        </div>
+        <div className="row">
+          <h2 className="themeFontColor col-12">
+            {currencyFormatter.format(house.price)}
+          </h2>
+        </div>
+        <div className="row">
+          <div className="col-12 mt-3">{house.description}</div>
+        </div>
+        <BidList bids={bids} />
+        <AddBid house={house} addBid={addBid} />
+      </div>
+    </div>
+  );
+};
+
+export default House;
+```
+
+Now we successfully refactored the AddBid's functionality, **AddBid** and **BidList** now have a single responsibility. And we have lifted state up to their mutual parent, house.
+
+## Where to Go Next
+
+- Practice What You learned.
+- Way to practice could be to start some project that you do yourself from start to finish, may be a todo list application or something to keep track of fish in a tank.
+- It may be not the most exciting work, but thinking about the design upfront may save you from mistakes that can cost you a lot of time later on.
+- Proceed to Advanced Courses
+
+## Related Topics
+
+Here are some additional technologies that are strongly related to react that may be worth looking into after that.
+
+- TypeScript
+- Redux
+  - A way to centralize application state. Using it will store state in a data store maintained by Redux as opposed to React that keeps it in memory.
+  - All components in the app can potentially then use the centralized state
+- ReactQuery
+  - Adds complexity to a lesser degree and is designed to cache state with data that comes from the APIs. It has ability to share such state between components among other features.

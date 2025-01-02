@@ -83,6 +83,18 @@
       "bidder": "Vivek M",
       "amount": 2000,
       "id": 14
+    },
+    {
+      "houseId": 2,
+      "bidder": "Vivek M",
+      "amount": 10000,
+      "id": 15
+    },
+    {
+      "houseId": 5,
+      "bidder": "Vipin",
+      "amount": 20000,
+      "id": 16
     }
   ]
 }
