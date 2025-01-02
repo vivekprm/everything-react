@@ -35,17 +35,27 @@ Only way to get authentication right and secure is to delegate the task to a ser
 # Application Architecture
 Here is the concept for the application where we'll see the code for in a minute. Auntentication aside, the fact is that any single page application, let's call it SPA from now on, needs some kind of server, atleast to be able to download the static assets. The download would contain all HTML, CSS and JavaScript needed for the application. These static assets could come from a source like a CDN. But for now let's assume the backend application hosts them.
 
+<img width="788" alt="Screenshot 2025-01-02 at 3 42 07 PM" src="https://github.com/user-attachments/assets/c276a521-d1fd-4600-9c6b-451835932f46" />
+
 So the first request of the browser to the backend will bring the static assets over. And after that the React application is running in the browser, and it typically does request to an API with data endpoints to get and manipulate data.
+
+<img width="568" alt="Screenshot 2025-01-02 at 3 42 26 PM" src="https://github.com/user-attachments/assets/cf7a734e-7842-4d60-abf1-d8b78087cf7d" />
 
 ## Logging In 
 How do we add authentication?
 Since React application can't do it by itself we will add a **login** endpoint on the backend. It's one of the user endpoints.
 
+<img width="520" alt="Screenshot 2025-01-02 at 3 44 43 PM" src="https://github.com/user-attachments/assets/da0cdc94-0610-4c65-b81d-6c19b30909b9" />
+
 So now React application can redirect to a login page rendered not using React, but on the backend application, which will send it to the browser. The user can fill out username and password, which are submitted as a form post request to the backend and there the credentials are checked. 
 
 And if everything is okay, and this is important part, the backend sends a cookie to the browser, which is called the identity cookie because it contains the user identity in the form of claims.
 
+<img width="715" alt="Screenshot 2025-01-02 at 4 26 13 PM" src="https://github.com/user-attachments/assets/37f8b860-7af1-4137-a288-c8e79b87e719" />
+
 That cookie will be stored in the browser and as soon as a request such as a request to the API endpoints is sent to the same domain the cookie came from, the cookie is sent along automatically. That's just standard browser behavior.
+
+<img width="683" alt="Screenshot 2025-01-02 at 4 28 18 PM" src="https://github.com/user-attachments/assets/15f59794-08ed-42be-9fa7-6e79bed8cf5c" />
 
 So now that we have the cookie, we can protect endpoints on the server application. For example we can configure the endpoints that fetch data to require the cookie. On each request, the cookie will be sent along and the backend will know who users are and can check their claims too, if needed.
 
@@ -54,6 +64,8 @@ That's true but what we didn't mention yet is the fact that the cookie is **encr
 
 So now when the backend receives a request, it knows who the user is. But how can the React application know the claims of a user. After all it can't read the cookie because it's encrypted.
 For that we can simply add another endpoint to the backend application that gets back the user claims.
+
+<img width="988" alt="Screenshot 2025-01-02 at 4 42 44 PM" src="https://github.com/user-attachments/assets/b3f6bb1b-e0e2-4e43-b300-eccfc029d1b4" />
 
 And ofcourse that endpoint requires a valid identity cookie too.
 
