@@ -1648,3 +1648,839 @@ This will ensure that **get** function object isn't re-created but the same refe
 
 You could argue if the **useHouses** hook is still needed?
 You could put it's **useEffect** call in the **HouseList** component again and remove a level of abstraction. It's upto us.
+
+# Context & Navigation
+
+Using **context** we can pass data through the component tree without having to pass props down manually to every level. It's suitable for functionality like navigation.
+
+Some state in an application is relevant for a large number of components. The state in demo application that manages the different component compositions is an example. From the user's perspective, it is used to navigate through the application.
+
+<img width="1030" alt="Screenshot 2024-12-11 at 9 23 46 PM" src="https://github.com/user-attachments/assets/958f233d-1819-422c-ad30-a7331a704428" />
+
+Rightnow, the set function with which we can do the navigating is passed on from component to component. But what if, in the future, after implementing a couple of new features the component hierarchy looks more like this (see below pic).
+
+In this situation the set function must be passed in via a prop to every component that needs to navigate. It works, but passing it in manually to every component level is cumbersome. It would be great if state could be defined somewhere so that all components could read it without the need to pass it on with props to every component that needs it. React provides the possibility to do just that by using context.
+
+## Declaring Context
+
+Here's an overview of how context works:
+
+- Context has to be created. It is given default value as parameter.
+
+```js
+const context = React.createContext("default value");
+```
+
+- Context object has to be made available for the component that provides the context to its children as well as the child components that want to access the value provided by the context.
+- In the component that wants to pass context to its children, a component called **Provider** contained in the **context** object can be rendered, providing a certain value. If no value is given default value given in step 1 is used.
+
+```js
+<context.Provider value="some value">// children</context.Provider>
+```
+
+- The **Provider** component doesn't have a visual appearance. It's job is to just provide the value to all child components.
+- **Children** can now optionally read the context value. It doesn't matter if it's a direct child or a child that is further down in the hierarchy.
+
+```js
+const value = useContext(context);
+```
+
+- The value is read using the **useContext** hook, which takes the context object as parameter.
+- In JSX there is also the possibility to use the **Consumer** component that is also present on the context. In an expression, a function is defined that gets the context value, which we can use to render something that uses it.
+
+```js
+<context.Consumer>
+  {value => /* render something based on value */}
+</context.Consumer>
+```
+
+**Important**: When the **context** value changes all children that access the context value will re-render.
+
+In demo application having state in App that sets a selectedHouse was a great idea but it isn't sufficient if the application expands in functionality because there will be components that aren't about houses at all.
+The selected house state only works to switch between the **HouseList** and **House** components. We could create more state to support other components but the logic that determines what has to be displayed quickly will become messy and unmaintainable.
+
+So we are creating a more generic solution to do navigation. Create a file called `navValues.js` in helpers directory that contains all the different components compositions for our application.
+At this point there are just two, **home** where **HouseList** is rendered and **house** for the **House** details.
+
+```js
+const navValues = {
+  home: "Home",
+  house: "House",
+};
+export default navValues;
+```
+
+In the App component we will get rid of selectedHouse state.
+
+```js
+import React, { useState } from "react";
+import Banner from "./banner";
+import HouseList from "./houseList";
+import { House } from "./house";
+import navValues from "@/helpers/navValues";
+
+const navigationContext = React.createContext(navValues.home);
+const App = () => {
+  return (
+    <navigationContext.Provider value={navValues.home}>
+      <Banner>Providing houses all over the world.</Banner>
+    </navigationContext.Provider>
+  );
+};
+export { navigationContext };
+export default App;
+```
+
+Context is only useful if the value can be changed. So we are introducing a **nav** state and instead of providing static values use state.
+
+```js
+const navigationContext = React.createContext(navValues.home);
+const App = () => {
+  const [nav, setNav] = useState(navValues.home);
+  return (
+    <navigationContext.Provider value={nav}>
+      <Banner>Providing houses all over the world.</Banner>
+    </navigationContext.Provider>
+  );
+};
+export { navigationContext };
+export default App;
+```
+
+Now let's create a wrapper function.
+
+```js
+const App = () => {
+  const navigate = useCallback((navTo) => setNav(navTo), []);
+  const [nav, setNav] = useState(navValues.home);
+  return (
+    <navigationContext.Provider value={nav}>
+      <Banner>Providing houses all over the world.</Banner>
+    </navigationContext.Provider>
+  );
+};
+export { navigationContext };
+export default App;
+```
+
+Now you would be inclined to pass this navigate function to the children by passing in an object to the value of the provider that contains both, the state and the function.
+
+```js
+return (
+  <navigationContext.Provider value={{ nav, navigate }}>
+    <Banner>Providing houses all over the world.</Banner>
+  </navigationContext.Provider>
+);
+```
+
+Be careful, with this however, since this object will be recreated with each rerender and thus all children consuming the value will re-render too. We want to leave the re-render responsibility to the state itself. So it's better to include the function in the state. Instead of just the nav value, an object is passed in with current property containing the navValue and the function and we have to adjust the navigate function too.
+
+```js
+const App = () => {
+  const navigate = useCallback(
+    (navTo) => setNav({ current: navTo, navigate }),
+    []
+  );
+  const [nav, setNav] = useState((current) => navValues.home);
+  return (
+    <navigationContext.Provider value={nav}>
+      <Banner>Providing houses all over the world.</Banner>
+    </navigationContext.Provider>
+  );
+};
+export { navigationContext };
+export default App;
+```
+
+Now a way is needed to figure out what should be rendered. We could write a switch statement using an expression below banner, but let's keep this JSX nice and clean and use a component **ComponentPicker**.
+
+**ComponentPicker** is passed the current nav location with a prop. ComponentPicker have a switch statment.
+
+```js
+import navValues from "@/helpers/navValues";
+import React from "react";
+import HouseList from "./houseList";
+import { House } from "./house";
+
+const componentPicker = ({ currentNavLocation }) => {
+  switch (currentNavLocation) {
+    case navValues.home:
+      return <HouseList />;
+    case navValues.house:
+      return <House />;
+    default:
+      return (
+        <h3>No component for navigation value {currentNavLocation} found</h3>
+      );
+  }
+};
+
+export default componentPicker;
+```
+
+House component needs selected house as prop. Now we will see how we can use context in HouseRow component.
+
+```js
+import currencyFormatter from "@/helpers/currencyFormatter";
+import React, { useContext } from "react";
+import { navigationContext } from "./app";
+import navValues from "@/helpers/navValues";
+
+const HouseRow = ({ house }) => {
+  const { navigate } = useContext(navigationContext);
+  return (
+    <tr onClick={() => navigate(navValues.house, house)}>
+      <td>{house.address}</td>
+      <td>{house.country}</td>
+      <td>{currencyFormatter.format(house.price)}</td>
+    </tr>
+  );
+};
+
+const HouseRowMem = React.memo(HouseRow);
+export default HouseRow;
+export { HouseRowMem };
+```
+
+Notice we are passing second parameter house to navigate function. Let's add support for that in App component.
+
+```js
+const App = () => {
+  const navigate = useCallback(
+    (navTo, param) => setNav({ current: navTo, param, navigate }),
+    []
+  );
+  const [nav, setNav] = useState((current) => navValues.home);
+  return (
+    <navigationContext.Provider value={nav}>
+      <Banner>Providing houses all over the world.</Banner>
+    </navigationContext.Provider>
+  );
+};
+export { navigationContext };
+export default App;
+```
+
+Now in House component also we can use useContext as below:
+
+```js
+import defaultPhoto from "@/helpers/defaultPhoto";
+import React, { useContext } from "react";
+import { navigationContext } from "./app";
+
+export const House = () => {
+  const { param: house } = useContext(navigationContext);
+  return (
+    <div className="row">
+      <div className="col-6">
+        <div className="row">
+          <img
+            className="img-fluid"
+            src={
+              house.photo ? `./houseImages/${house.photo}.jpeg` : defaultPhoto
+            }
+            alt="House pic"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+Now everything works but it would be nice if we could return to HouseList somehow may be by clicking on the logo for example. Since all the child components has access to context, Banner component also can take advantage of it.
+
+## Navigation Libraries
+
+Our navigation logic may be sufficient for this application but what if more features are needed? For example when we navigate right now, the URL in the browser stays as it is. May be user would expect to return to the previous composition if they press the back button in the browser and a deep link to a particular house could be great so the other sites can link to it for SEO. We could build this and maybe more ourselves, but there is also the option to go with the routing system built into **next.js** if you use that or use an extra JavaScript library. **React Router** is the most popular option.
+
+**Note**: React Router doesn't work with **next.js** because **next.js** uses server-side features that **React Router** doesn't support. So it's popularity comes from users from other frameworks like **Create React App**. It provides a number of components to setup routes with.
+E.g.
+
+```js
+<Router>
+  <HousesContext.Provider value={allHouses}>
+    <div className="container">
+      <Header subtitle="Providing houses all over the world" />
+      <HouseFilter allHouses={allHouses} />
+      <Routes>
+        <Route
+          path="/searchresults/:country"
+          element={<SearchResults />}
+        ></Route>
+        <Route path="/house/:id" element={<HouseFromQuery />}></Route>
+        <Route
+          path="/"
+          element={<FeaturedHouse house={featureHouse} />}
+        ></Route>
+      </Routes>
+    </div>
+  </HousesContext.Provider>
+</Router>
+```
+
+**Routes** are basically the link between a URL and a component composition. To navigate to such a URL, a navigation function or a special **Link** component can be used.
+
+If you need the extra features it's recommended to use third party navigation libraries such as **ReactRouter**. As long as you consider the extra dependency on the library and realize that all the features that these types of libraries bring are built around what you've learned in state using context.
+
+## When and where should you use **Context**?
+
+In the example application, context is used in the root component but it can be introduced at any level in the component hierarchy, for example at the level of **HouseList**, putting in a provider for a certain value there. Then that value will be available for all **HouseList** children.
+
+So when it should be used?
+Well bascially, if you have to pass the same state to many components via props. However, you should be aware of the implications of using context.
+
+- The main one is that potentially many components will re-render when it changes.
+- Another implication is that the component consuming it will rely on a context being present and that makes component reuse more difficult.
+- And also realize that state provided by the context is basically hidden state. When you start writing anew component, you have no idea it's there unless you havea through understanding of all the rst of the source code.
+
+# User Input & Forms
+
+The input elements accept user inputs, under the hood this input is stored in memory. So these already have a state, it's just not react state.
+When the form is submitted in a JavaScript Application that doesn't use React, we would have to:
+
+- Write code that gets us a reference to the input as an object
+- And extract the current value before it can, for example be posted to an API.
+- React applications rely on state managed by React, so we have to convert the internal state handling of the elements to the React state.
+- We have to turn them into **controlled components**.
+
+With React **internal form components**, this can be done by using the **value** attribute. It supports an expression as the value that points to state.
+
+```js
+const [firstname, setFirstname] = useState("Alice");
+
+return <input type="text" value={firstname} />;
+```
+
+In this example, the value of the firstname state is displayed in the input but this is only part of the solution. Right now, the firstname state isn't changed by the input. To accomplish that, the **onChange** event can be handled. It will fire on each keystroke.
+
+```js
+const [firstname, setFirstname] = useState("Alice");
+
+return (
+  <input
+    type="text"
+    value={firstname}
+    onChange={(e) => setFirstname(e.target.value)}
+  />
+);
+```
+
+In the handler we can call the set function. We get the current input value from the event object passed into the handler function. **Event** object has a **target** property that is a reference to the DOM element object that caused the event to fire. From that, the value can be read, which contains a string that represents the input's contents.
+
+If the input is a checkbox or radio, we use **checked** instead of **value**. This input is now a **controlled component** because the state of it is now fully controlled by React.
+
+Now that the value of the input is controlled by React state, we can, of course benefit from all the goodness it brings, pass the state to other components or control the input's value outside of the input components using the set function for example.
+
+## Forms
+
+When the **input** is used on a **form**, the **onSubmit** event can be handled and the handler gets an event object on which **preventDefault** has to be called. It prevents browsers from doing the default submit action. May be you are used to returning **false** from the submit function to prevent the default action, but that's not supported in React.
+
+```js
+const [firstname, setFirstname] = useState("Alice");
+const submit = (e) => {
+  e.preventDefault();
+  // submit first name to API
+};
+return (
+  <form onSubmit={submit}>
+    <input
+      type="text"
+      value={firstname}
+      onChange={(e) => setFirstname(e.target.value)}
+    />
+  </form>
+);
+```
+
+When multiple inputs are used, it is common practice to declare state as an object.
+
+```js
+const [person, setPerson] = useState({ firstname: "Alice", lastname: "Doe" });
+const submit = (e) => {
+  e.preventDefault();
+  // submit person to API
+};
+return (
+  <form onSubmit={submit}>
+    <input
+      type="text"
+      value={person.firstname}
+      onChange={(e) => setPerson({ ...person, firstname: e.target.value })}
+    />
+    <input
+      type="text"
+      value={person.lastname}
+      onChange={(e) => setPerson({ ...person, lastname: e.target.value })}
+    />
+  </form>
+);
+```
+
+Instead of giving each input it's own **onChange** handler, this is also a commonly used pattern:
+
+```js
+const [person, setPerson] = useState({ firstname: "Alice", lastname: "Doe" });
+const submit = (e) => {
+  e.preventDefault();
+  // submit person to API
+};
+const change = (e) => setPerson({ ...person, [e.target.name]: e.target.value });
+return (
+  <form onSubmit={submit}>
+    <input type="text" value={person.firstname} onChange={change} />
+    <input type="text" value={person.lastname} onChange={change} />
+  </form>
+);
+```
+
+This syntax is known as **computed property name** in Javascript. `e.target.name` refers to the name attribute, which is now present on all inputs. The value of the attribute must correspond to the property name in the state object for this to work.
+
+## Working with Input Components
+
+Armed with above knowledge, We are going to see how a new feature around house bids work in the application.
+
+In the **House** component there is now a section that shows bids on the house and there is an option to submit the new bid. This functionality is provided by a new component called **Bids**.
+
+Let's add a new hook called **useBids**
+
+```js
+import { useEffect, useState } from "react";
+import useGetRequest from "./useGetRequest";
+
+const useBids = (houseId) => {
+  const [bids, setBids] = useState([]);
+  const { get, loadingState } = useGetRequest(`/api/bids/${houseId}`);
+
+  useEffect(() => {
+    const fetchBids = async () => {
+      const bids = await get();
+      setBids(bids);
+    };
+    fetchBids();
+  }, [get]);
+  const postBid = async (bid) => {
+    await fetch(`/api/bids/${bid.houseId}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(bid),
+    });
+  };
+
+  const addBid = (bid) => {
+    postBid(bid);
+    setBids([...bids, bid]);
+  };
+  return { bids, loadingState, addBid };
+};
+
+export default useBids;
+```
+
+Now add Bids component as below:
+
+```js
+import useBids from "../hooks/useBids";
+
+const { default: loadingStatus } = require("../helpers/loadingStatus");
+const { useState } = require("react");
+const { LoadingIndicator } = require("./loadingIndicator");
+const { default: currencyFormatter } = require("../helpers/currencyFormatter");
+
+const Bids = ({ house }) => {
+  const { bids, loadingState, addBid } = useBids(house.id);
+
+  const emptyBid = {
+    houseId: house.id,
+    bidder: "",
+    amount: 0,
+  };
+
+  const [newBid, setNewBid] = useState(emptyBid);
+
+  if (loadingState !== loadingStatus.loaded) {
+    return <LoadingIndicator loadingState={loadingState} />;
+  }
+
+  const onBidSubmitClick = () => {
+    addBid(newBid);
+    setNewBid(emptyBid);
+  };
+
+  return (
+    <>
+      <div className="row mt-4">
+        <div className="col-12">
+          <table className="table table-sm">
+            <thead>
+              <tr>
+                <th>Bidder</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bids.map((b) => (
+                <tr key={b.id}>
+                  <td>{b.bidder}</td>
+                  <td>{currencyFormatter.format(b.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="row">
+        <div className="col-5">
+          <input
+            id="bidder"
+            className="h-100"
+            type="text"
+            value={newBid.bidder}
+            onChange={(e) => setNewBid({ ...newBid, bidder: e.target.value })}
+            placeholder="Bidder"
+          />
+        </div>
+        <div className="col-5">
+          <input
+            id="amount"
+            className="h-100"
+            type="number"
+            value={newBid.amount}
+            onChange={(e) =>
+              setNewBid({ ...newBid, amount: parseInt(e.target.value) })
+            }
+            placeholder="Amount"
+          />
+        </div>
+        <div className="col-2">
+          <button className="btn btn-primary" onClick={onBidSubmitClick}>
+            Add
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default Bids;
+```
+
+Now add this **Bids** component in **House** component.
+
+```js
+import defaultPhoto from "../helpers/defaultPhoto";
+import React, { useContext } from "react";
+import { navigationContext } from "./app";
+import Bids from "./bids";
+import currencyFormatter from "../helpers/currencyFormatter";
+
+const House = () => {
+  const { param: house } = useContext(navigationContext);
+  return (
+    <div className="row">
+      <div className="col-6">
+        <div className="row">
+          <img
+            className="img-fluid"
+            src={
+              house.photo ? `./houseImages/${house.photo}.jpeg` : defaultPhoto
+            }
+            alt="House pic"
+          />
+        </div>
+      </div>
+      <div className="col-6">
+        <div className="row mt-2">
+          <h5 className="col-12">{house.country}</h5>
+        </div>
+        <div className="row">
+          <h3 className="col-12">{house.address}</h3>
+        </div>
+        <div className="row">
+          <h2 className="themeFontColor col-12">
+            {currencyFormatter.format(house.price)}
+          </h2>
+        </div>
+        <div className="row">
+          <div className="col-12 mt-3">{house.description}</div>
+        </div>
+        <Bids house={house} />
+      </div>
+    </div>
+  );
+};
+
+export default House;
+```
+
+## Non-input Form Components
+
+There are two input components that work differently than their HTML equivalent in React.
+
+- **textarea**
+
+  - In HTML text is placed as the innerHTML. Because of this making this a **controlled component** while maintaining the same usage is difficult.
+  - That's why the React version works similarly to an input component in React. We have the value attribute that can point to state and onChange event with a handler that changes the state.
+
+  HTML
+
+  ```html
+  <textarea>
+    Some text
+  </textarea>
+  ```
+
+  React
+
+  ```js
+  <textarea value={state} onChange={change} />
+  ```
+
+- **select**
+
+  - This faciliates drop-down list. In HTML we determine which option is selected using the **selected** attribute.
+  - This makes it hard to work with state, and that's why in react we use it again like input. **state** below determines which item is selected. If state contains the string "option1" the first one will be selected. And when user select an option, **change** will fire, which again like input can change the state using the value property on the target object available on the event object.
+
+  HTML
+
+  ```html
+  <select>
+    <option value="option1">1</option>
+    <option selected value="option2">2</option>
+  </select>
+  ```
+
+  REACT
+
+  ```js
+  <select value={state} onChange={change}>
+    <option value="option1">1</option>
+    <option value="option2">2</option>
+  </select>
+  ```
+
+## Uncontrolled Components
+
+Normally using **controlled component** is definitely the way to go. However, there can be a lot of work because we need to write an event handler for every way your data can change and pipe all of the input state through a React component.
+This can become annoying when you are converting a pre-existing codebase to React, for example, or if you want a quick and dirty solution. In these cases, you might consider to use uncontrolled components, may be temporarily.
+Having said that, in software development temporary things become permanent. So it's worth investing extra time to do it the controlled way from the start.
+
+Anyways, here is how uncontrolled components work.
+
+```js
+const Form = () => {
+  const inputEl = useRef(null);
+  const submit = (e) => {
+    e.preventDefault();
+    const inputValue = inputEl.current.value;
+    // process input value
+  };
+  return (
+    <form>
+      <input ref={inputEl} type="text" />
+      <input type="submit" value="Submit" />
+    </form>
+  );
+};
+```
+
+Components can have **ref** attribute that points to the resulting variable. The JavaScript DOM object representing the current element in the browser becomes available in the variable. When it's time to submit the form value of each input can be read by using the **current** property on the refs, which contains the object.
+
+Note we are not using react's state mechanism at all here. Instead the native state of the browser elements is used. React doesn't have any control over that, hence the name **uncontrolled components**.
+
+It's also possible to use an expression for the **defaultValue** attribute of a component that uses some state or a variable. This value will be set on first render. After that the input will be uncontrolled.
+
+```jsx
+<input ref="{inputEl}" type="text" defaultValue={val} />
+```
+
+A file input is always an uncontrolled component because it's value can only be set by a user, not in code. That means react doesn't have a way to put a state value into it.
+
+```js
+const Form = () => {
+  const inputEl = useRef(null);
+  const submit = (e) => {
+    e.preventDefault();
+    const selectedFile = inputEl.current.files[0].name;
+    // process input value
+  };
+  return (
+    <form>
+      <input ref={inputEl} type="file" />
+      <input type="submit" value="Submit" />
+    </form>
+  );
+};
+```
+
+So when using input type as **file**, you will always have to use a ref. In the submit function, the files can be read from the element object.
+
+## Form Libraries
+
+If you need more out of the box functionalities such as:
+
+- Validation
+- Error messages
+- Handling form submissions
+- Making state handling easier
+
+You could take a look at an external library that helps with forms. The most popular one is called **[Formik](http://formik.org)**. Keep in mind that it's built on same principles of controlled components and managing state.
+
+# Application Design
+
+Application design is something you need when starting with a new project, but also during the lifetime of the project when new features are added. In both case Mocks are probably made, which basically is a sketch depicting how the UI should look like. And now you are asked to implement it. The first thing to do is to determine the components that have to be built with the single responsibility principle in mind that basically tells us that every component should do just one thing.
+In this case, since this is the start of a new application, there first is the component that contains all the other components, the **root component**.
+
+Being the container for all other components is its responsiblity. In the root component is the **Banner**, the **HouseList** and the **HouseRow**.
+
+You don't want components that do too much because they tend to become unmaintainable. But keep in mind that design is a living thing.
+
+You shouldn't go too far, but also be sure you go far enough when creating the component hierarchy.
+
+In some point in the course, we added an **Add** button, for example, and we added it as part of **HouseList**. It's good idea to create a separate component for it because this is a typical example of a single responsibility violation.
+
+A component that lists something shouldn't also be adding something. These are two separate tasks.
+In the **House** composition, there's similar example. The picture and information about the house is perfectly fine to have in the **House** component, and the **House** component renders a **Bids** component. Rightnow we have a list of Bids and the adding of Bids in one component. But now that we take a look at it from a design perspective, that might not have been such a good idea.
+
+Let's go through all the design steps first. After applying the Bids fix and identifying all the other components, a hierarchy like below can be created.
+
+- App
+  - Banner
+  - HouseList
+    - HouseRow
+  - House
+    - BidList
+    - AddBid
+
+With this hierarchy in hand we can go to the next step.
+
+## File Structure & Building a Static Version
+
+In demo application we have used a system that groups the files by type.
+
+- components
+  - app.js
+  - houseList.js
+  - house.js
+  - ...
+- helpers
+  - currencyFormatter.js
+  - loadingStatus.js
+  - navValues.js
+  - ...
+- hooks
+  - useHouses.js
+  - useBids.js
+  - useGetRequest.js
+  - ...
+
+This works great for now, but when this application grows beyond supporting just houses, the number of files and components, for instance, will grow to a point where it's getting hard to find a particular file on the list. In that case, it would be an option to create a directory per feature and put all the files for the feature directly under that and have a common directory for everything that is needed by each feature while having the root component at the root directory level.
+
+- app.js
+- houses
+  - houseList.js
+  - house.js
+  - useHouses.js
+  - useBids.js
+  - ...
+- customers
+  - customerList.js
+  - useCustomers.js
+  - ...
+- common
+  - currencyFormatter.js
+  - loadingStatus.js
+  - navValues.js
+  - useGetRequest.js
+  - ...
+
+Using this structure, you could consider to rename the component that you consider the main component for a feature to `index.js`. The advantage is that this component can now be imported by just using the directory name omitting the file name. This is a **webpack** feature, so it only worksif you're using that. `Next.js` and `Create React App` use it by default.
+
+- app.js
+- houses
+  - index.js : `import HouseList from "./houses"`
+  - house.js
+  - useHouses.js
+  - useBids.js
+  - ...
+- customers
+  - index.js : `import CustomerList from "./customers"`
+  - useCustomers.js
+  - ...
+- common
+  - currencyFormatter.js
+  - loadingStatus.js
+  - navValues.js
+  - useGetRequest.js
+  - ...
+
+However drawback is, there would be multiple files showing up in the tab bar of the code editor that are named `index.js` and it's hard to tell the difference.
+
+React doesn't have an opinion on how you should put files into directories, so you can do it however you think is right for your application. But limiting yourself to a directory nesting level of three or four is a good idea to avoid getting overwhelmed by the sheer number of directories.
+
+## Create a First Application Version
+
+It's time to open a code editor and make a first version of the app, a version that doesn't support interactivity yet, but just renders the UI. In other words, you should create it without the use of state. Just use props to pass on data in the hierarchy. Creating a one-way data flow. And as a data source for now use something in-memory. Only when you have that working, state can be introduced.
+
+## Introducing State
+
+Creating state is easy enough, but it should be in the application as little as possible to avoid re-renders. To identify if data should be state, this checklist can be used:
+
+- Data is probably not state for a component when it's passed in by a parent using props.
+- The data involved should also change over time. If it's static data then there is no point putting that in state.
+- When the data can be computed, it probably isn't state either.
+
+So what about houses array, is that state?
+For initial app it won't be passed in as a prop. We start out with an empty array, and then it changes after loading and we can't compute it. So that qualifies a state.
+
+And if we were to include a total number of items counter in our **HouseList** component, well that can easily be determined by reading the length property of the data array, so no need to use state. Computing it is trivial.
+
+What about the default house photo?
+It's a static string so no.
+
+The Bids are because of the same reasons as houses.
+
+And the NewBid, is that state?
+Yes, can't be computed, it's changed by the user, and it is not passed in via a prop.
+
+## Placing and Applying state
+
+We have learned that state can live throughout the application because it can be passed around using props or contacts, for example. But there is only one component that owns a particular piece of state. That's the place where the state is introduced. Place state as low as possible in the component hierarchy.
+
+Lets take example of NewBid state. What component use that state?
+
+- App
+  - Banner
+  - HouseList
+    - HouseRow
+  - House
+    - BidList
+    - AddBid
+
+AddBid is the only one, so that should be the owner. Now the Bid state, which component use it?
+**BidList** obviously, but also **AddBid**. Because they both use it, we can walk up the tree to look for a common parent. In this case there is **House**, so the state should be there.
+
+If a common parent isn't so easily found, you can also consider creating one, and the sole purpose of this component could be to introduce state. Now in future there may be a requirement that **HouseList** should should show highest Bid in the table. Now there are three component the use the state. Making **House** the state owner doesn't work anymore. We should look higher up in the component tree to see where it can go. In this case, it can be introduced in the **App** root component because that is the common parent for all components that use it.
+
+This is called lifting state up because the new location is higher up in the component hierarchy.
+
+How to apply state?
+We could just use the state hook i.e. **useState** in the designated component, or we could create a custom hook that hold the state. When using a custom hook, the component that uses it is still the owner. All state and effects inside the hook are considered part of the component.
+
+Using **context** is another option if you don't want to pass the state via props to many components or if you want to implement a navigation technique that is basically state available for the whole application, global state.
+
+## Adding Inverse Data Flow
+
+The normal data flow in React is from higher-level components in the hierarchy to lower-level ones because we are passing on data via props. This is often referred to as one way data flow of React.
+But sometimes a child component wants something done by it's parent. The most common thing it wants is to change the state of the parent. We do that by invering the data flow. We've already seen that in action when we passed functions to children. That's React's way to inverse flow.
+
+When children call such a function, you could say that they are swimming against the one-way stream. In the design phase it's good idea to identify the places where that should happen.
+
+## Implementing Design Changes
+
+While going through the all design steps for the whole application, we discovered that the functionality to list bids and to add them should be separated. We also saw that the two components should be siblings with the **House** component as the parent and that on that component level the bid's state should live. And there is one other piece of state for the new bid that should be in the **AddBid** component.
+
+Now let's implement the design changes.
