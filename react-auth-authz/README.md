@@ -275,7 +275,7 @@ The issuer of your passport keeps all your information safe. Same thing for the 
 
 That's great but somehow this information has to be sent to the client. We need something like the passport was for the hotel, something that can show the client claims while at the same time client knows for sure it can trust these claims to be true and that's where tokens come in.
 
-pic
+<img width="908" alt="Screenshot 2025-01-03 at 6 59 31 PM" src="https://github.com/user-attachments/assets/3cc96e06-eedc-461c-a868-1d70e50265be" />
 
 Tokens are issued by the identity provider, but only with your permission and not before certain cryptographic characteristics are added to them. The digital version of the anti-forgery measures the passport has. The token is then sent to the client, which verifies the token using these characteristics. It makes sure the token came from the identity provider it trusts, and it checks if the token wasn't tampered with along the way.
 
