@@ -230,3 +230,31 @@ Here a separate reverse proxy using a webserver like NGINX or IIS for example ru
 In this setup, we could deploy the static assets for the React application on the CDN, for example, that runs on a domain that is different from the one the backend application uses. Because from the browser's perspective, cookies set by the backend come from app.globomantics.com and the React application is coming from the same domain, SameSite cookie will work.
 
 Please visit https://bit.ly/reverseprox to see an example on how this is setup.
+
+# OpenID Connect & OAuth2
+**Identity providers** provide authentication services to multiple applications. Modern ones implement the industry standard **OpenID Connect** to make that work. Expect to know all about them in combination with BFF by the end of this module.
+
+When the application landscape in your organization has similarities with picture below, using just cookie authentication is probably not enough.
+
+pic
+
+Imagine we have two frontends for the same application one on the web and one on the phone. We could implement BFF for both and do authentication in there. But users will expect they can use the same credentials and in addition to that in above diagram both frontends use separate web apis to get and manipulate data. But the API has to have a way to restrict access to it. The API needs to make sure the user was authenticated in the frontend application and it wants to know who the user is maybe because it has to filter data acoording to the role claim of the user for example.
+
+We need some mechanism to make that work and just using cookies won't suffice because cookies are domain-restricted, and all these applications run separately.
+
+For more centralized approach to authentication, an **identity provider** is used. An identity provider is a service application. You could see it as a special kind of API that is added to the application landscape. It facilitates a centralized way to do authentiation that works across several applications.
+
+Authentication doesn't take place at one specific application but instead at this centralized identity provider and the user store with claims is managed by the identity provider too. When user want to change their password setup two factor authentication or do something else to manage their account, they do it at the identity provider as opposed to the application they're in.
+
+There's typically only one identity provider for all applications in an organization and that brings another benefit to the table, when users use different web applications that all trust the same identity provider, they have to login only once in order to use all these applications and this effect is known as **Single Sign-On (SSO)**. 
+
+pic
+
+This time authentication for React app is not done by the backend companion but instead by the identity provider. The backend just facilitates it and that means that login page is now not displayed by the backend, instead it will redirect to the identity provider, which will handle the login process and the datastore with all user claims we used earlier is moved to it because identity providers are the source of truth for claims.
+
+Once a user logs into the identity provider an identity cookie is set in the browser. The identity provider will then let the backend know that the login was successful by sending it the user information, the user claims. Since it now has the user's claims, it can set its own identity cookie as normal. On subsequent requests the identity provider is not needed anymore because we can just rely on the identity cookie.
+
+Now let's say the browser browses to another application, an aplication within the same organization. That application also redirects to the same identity provider but the browser already has an identity cookie from the identity provider, so no need to login. The identity provider skips the login process and sends the user information to the application striaghtaway, which will set the cookie for that particular application in the browser too. And this is called single sign-on.
+
+pic
+The only piece of information missing from above picture is how the identity provider communicates with our backend to send the user information.
