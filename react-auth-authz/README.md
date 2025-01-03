@@ -236,7 +236,7 @@ Please visit https://bit.ly/reverseprox to see an example on how this is setup.
 
 When the application landscape in your organization has similarities with picture below, using just cookie authentication is probably not enough.
 
-pic
+<img width="1184" alt="Screenshot 2025-01-03 at 5 23 07 PM" src="https://github.com/user-attachments/assets/ae019493-4479-4245-8ca7-585f0729192b" />
 
 Imagine we have two frontends for the same application one on the web and one on the phone. We could implement BFF for both and do authentication in there. But users will expect they can use the same credentials and in addition to that in above diagram both frontends use separate web apis to get and manipulate data. But the API has to have a way to restrict access to it. The API needs to make sure the user was authenticated in the frontend application and it wants to know who the user is maybe because it has to filter data acoording to the role claim of the user for example.
 
@@ -248,13 +248,12 @@ Authentication doesn't take place at one specific application but instead at thi
 
 There's typically only one identity provider for all applications in an organization and that brings another benefit to the table, when users use different web applications that all trust the same identity provider, they have to login only once in order to use all these applications and this effect is known as **Single Sign-On (SSO)**. 
 
-pic
-
 This time authentication for React app is not done by the backend companion but instead by the identity provider. The backend just facilitates it and that means that login page is now not displayed by the backend, instead it will redirect to the identity provider, which will handle the login process and the datastore with all user claims we used earlier is moved to it because identity providers are the source of truth for claims.
 
 Once a user logs into the identity provider an identity cookie is set in the browser. The identity provider will then let the backend know that the login was successful by sending it the user information, the user claims. Since it now has the user's claims, it can set its own identity cookie as normal. On subsequent requests the identity provider is not needed anymore because we can just rely on the identity cookie.
 
 Now let's say the browser browses to another application, an aplication within the same organization. That application also redirects to the same identity provider but the browser already has an identity cookie from the identity provider, so no need to login. The identity provider skips the login process and sends the user information to the application striaghtaway, which will set the cookie for that particular application in the browser too. And this is called single sign-on.
 
-pic
+<img width="1137" alt="Screenshot 2025-01-03 at 6 01 55 PM" src="https://github.com/user-attachments/assets/073296ea-24f0-4d71-8be3-c26bcc95becf" />
+
 The only piece of information missing from above picture is how the identity provider communicates with our backend to send the user information.
