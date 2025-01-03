@@ -207,7 +207,7 @@ So for example a request to ```/account/login``` will send back the login page t
 
 So when the browser simply accesses localhost:7180 the root of the domain, the backend doesn't have an endpoint configured for it and proxies the request to the React application that will generate a response containing all HTMLs users in JavaScript needed for the SPA to run.
 
-pic
+<img width="828" alt="Screenshot 2025-01-03 at 5 09 15 PM" src="https://github.com/user-attachments/assets/34665960-89b3-4407-b57f-068f916cb6a5" />
 
 The backend will simply pass the response on to the browser. So since the browser now only communicates with the backend, samesite cookies will work. So our backend is spawning frontend and sending request to it. For example in dotnet it can be configured in csproj file as below:
 ```csproj
@@ -224,7 +224,7 @@ Another benefit is we don't have to deal with CORS in this case. React applicati
 
 This reverse proxy built into the backend is ideal while developing the application because we can debug everything at once, including authentication. However, in production a scenario like this might be more suitable.
 
-pic
+<img width="1230" alt="Screenshot 2025-01-03 at 5 07 55 PM" src="https://github.com/user-attachments/assets/6bc270a0-cbbf-493c-b919-672f751fec28" />
 
 Here a separate reverse proxy using a webserver like NGINX or IIS for example runs on app.globomantics.com and it is proxying both requests for the backend and the frontend to their corresponding URLs.
 In this setup, we could deploy the static assets for the React application on the CDN, for example, that runs on a domain that is different from the one the backend application uses. Because from the browser's perspective, cookies set by the backend come from app.globomantics.com and the React application is coming from the same domain, SameSite cookie will work.
