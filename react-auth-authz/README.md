@@ -72,3 +72,161 @@ And ofcourse that endpoint requires a valid identity cookie too.
 ### Cookie Hijacking
 Now what if somehow the cookie is obtained by attackers?
 They could still impersonate users and access endpoints on behalf of them. Now that's true but the cookie is way harder to read or obtain from JavaScript, assuming a cross-site scripting attack. First of all identity cookies have the **HttpOnly** flag, that means they can't be accessed from JavaScript at all and on top of that there's the mentioned encryption.
+
+https://github.com/RolandGuijt/ps-reactauth
+
+## Backend
+Request travels through Request pipeline back and forth, reading and manipulating the request data into a response. Pieces of functionality in the pipeline are called middleware. There is middleware in the pipeline that does routing. In other words, it maps a particular URL to an action the backend application should do.
+For example, a GET request on ```/customers``` could return a collection of customers, or accessing ```/account/login``` will return HTML, representing the login page.
+
+There is middleware that enables downloading of static files such as HTML and JavaScript files and for authentication.
+In our case Job of this authentication middleware is to verify, decrypt and read the identity cookie.
+
+### Flow
+We have AccountController which has number of methods called actions that have to do with user management.
+
+Using login action login is executed when the endpoint ```/account/login``` is accessed. In that case a view is displayed with an empty model object.
+
+When the form is submitted post login action will fire and it will get the login model containing the username and password the user entered.
+
+It's then validated against user records to check if it's valid login if not return 401. If it is valid login we build a list of user claims that come from the data source. With that we proceed with login and create cookie with identity token. The redirect to ```/```, which will reload the SPA.
+
+We also have ```/account/logout``` & ```/account/claims``` endpoints. These endpoints are also decorated with the authorize attribute. That means that these endpoints can only be accessed after successful login.
+
+Everytime the backend receives an identity cookie, the middleware will automatically verify and read it and make the content available through these claims.
+
+## Frontend
+We add useUser hook with below content:
+```js
+import React, { useCallback, useEffect, useState } from "react";
+import useGetRequest from "./useGetRequest";
+
+export const useUser = () => {
+  const { get, loadingState } = useGetRequest(
+    "/account/getUserClaims?slide=false"
+  );
+  const [claims, setClaims] = useState();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const getClaims = async () => {
+      const claims = await get();
+      setClaims(claims);
+      claims && claims.length > 0 && setIsAuthenticated(true);
+    };
+    getClaims();
+  }, [get]);
+  const login = useCallback(
+    () => window.location.replace("/account/login"),
+    []
+  );
+  const logout = useCallback(
+    () => window.location.replace("/account/logout"),
+    []
+  );
+  const getNameClaim = useCallback(
+    () => claims?.find((claim) => claim.type === "name").value,
+    [claims]
+  );
+  return {
+    claims,
+    loadingState,
+    isAuthenticated,
+    getNameClaim,
+    login,
+    logout,
+  };
+};
+```
+
+We have to makesure login logout etc are browser redirects not react's router redirect. We shouldn't use react's router to do this because then the redirects are handled internally by React. There is also a helper function to get the name claim of the user in an easy way.
+
+Now that we have the hook it's easy to make a component that either shows a login button when user's aren't authenticated or a greeting with the logout button if they are. Call the component **Authenticator**. It calls the **useUser** hook.
+
+```js
+import loadingStatus from "@/helpers/loadingStatus";
+import { useUser } from "@/hooks/useUser";
+import React from "react";
+import { LoadingIndicator } from "./loadingIndicator";
+
+export const Authenticator = () => {
+  const { isAuthenticated, login, logout, getNameClaim, loadingState } =
+    useUser();
+  if (loadingState === loadingStatus.isLoading) {
+    return <h4>Loading...</h4>;
+  }
+  if (isAuthenticated) {
+    var username = getNameClaim();
+    return (
+      <div>
+        Hi {username}
+        <div>
+          <button onClick={logout} className="mt-3 btn btn-secondary btn-sm">
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  } else {
+    <button onClick={login} className="btn btn-primary">
+      Login
+    </button>;
+  }
+};
+```
+
+### Cookies
+The browser stores all cookies set by a particular website. It can store many cookies from many different sites but only if requests are made to where the cookie came from, cookies will be send along.
+No other site will receive the cookies, and that sounds very safe however, there's a problem. Let's assume I am an admin and I'm logged into globomantics.com. So the browser has my identity cookie stored. In the meantime, I see a message on social media that promises me a concert ticket to a very popular band by visiting the freetickets.com website. On this website we see a page whose html looks like below:
+```html
+<h1>You have won!</h1>
+<form action="https://globomantics.com/approve" method="post">
+    <input type="hidden" name="proposalId" value="4237" />
+    <input type="submit" value="Get your free ticket" />
+</form>
+``` 
+
+It submits the form to the Globomantics URL that approves a proposal and the proposal ID that has to be approved is sent along. The input that contains proposalId is hidden, so users don't see it. They just see the button. So when we click the button, proposal 4237 is approved without us knowing it. And it works because I am the conference organizer and I have the identity cookie for globomantics.com. This is called **Cross Site Request Forgery** or CSRF. Which is very common and can be done in lot of ways. This is just one example.
+
+The attack works because cookies are also sent along across sites. Another site in this case is freetickets.com, can do all kinds of requests to globomantics.com and the browser is happy to send it all cookies it has for each time. To solve this, a cookie can now have a SameSite flag that can have any of these values.
+- **strict**: Means cookie will never be sent cross-site.
+- **Lax**: Introduces one exception to above rule. When a get request is done, cookies will be sent along as normal. This is to accomodate hyperlinks in the HTML of other sites. So in case of Globomantics, I could for example add a link to a certain conference in a blog post that is posted to another site and that link will send along the identity cookie as normal.
+    - The reasoning behind this exception is that a get request should only get data not manipulate it. So be very sure that all your get endpoints only get data. It doesn't matter in which application. Under no circumstances should they add or update something. 
+    - When our backend application sets the identity cookie, it will by default use SameSite cookies with a lax setting. But in our BFF scenario, we want to make sure that other sites can't access our endpoints at all. So we deviate from the default on the server, setting the strict SameSite cookie option on the configuration object.
+    - We also override the default cookie name by a name that starts with __Host, and this is an extra protection that makes sure even subdomains can't exploit the cookie.
+    - Also the default behaviour of the cookie middleware where users are not authenticated is to redirect to a login endpoint. But our frontend application doesn't expect HTML when authentication fails when the **getUserClaims** endpoint is called. 
+
+## Deployment & Debugging
+We have both backend and frontend in place now let's start them both. Do you see the problem here?
+Both applications are running on localhost but on a different port, which is a different site. With samesite cookies on, the backend application will set the cookie in the browser when authentication is complete but the browser will never send it along in subsequent requests because it's a SameSite cookie. 
+The browser has the cookie for the URL the backend runs on but when the frontend application does a request to the backend it will not send it because the frontend is running on a different domain. To tackle this one, we need to introduce some reverse proxying.
+
+We are still going to start both applications using their own URLs but the browser will not access the frontend directly instead it will send all requests to the backend. The backend will check if it has an endpoint configured for the request and if so handle it.
+
+So for example a request to ```/account/login``` will send back the login page to the browser. The request to ```/houses``` will return a list of houses. But for all requests that don't have an endpoint configured, the call will not be handled by the backend itself but instead sent over to the frontend application.
+
+So when the browser simply accesses localhost:7180 the root of the domain, the backend doesn't have an endpoint configured for it and proxies the request to the React application that will generate a response containing all HTMLs users in JavaScript needed for the SPA to run.
+
+pic
+
+The backend will simply pass the response on to the browser. So since the browser now only communicates with the backend, samesite cookies will work. So our backend is spawning frontend and sending request to it. For example in dotnet it can be configured in csproj file as below:
+```csproj
+<Project>
+    <PropertyGroup>
+        <SpaRoot>..\frontend\</SpaRoot>
+        <SpaClientUrl>http://localhost:3000</SpaClientUrl>
+        <SpaLaunchCommand>npm run dev</SpaLaunchCommand>
+    </PropertyGroup>
+</Project>
+```
+
+Another benefit is we don't have to deal with CORS in this case. React application does the API request directly to the API using relative URL. No need to put in domain here because it runs on the same one as the backend application and because of that backend doesn't have to be configured with the CORS policy.
+
+This reverse proxy built into the backend is ideal while developing the application because we can debug everything at once, including authentication. However, in production a scenario like this might be more suitable.
+
+pic
+
+Here a separate reverse proxy using a webserver like NGINX or IIS for example runs on app.globomantics.com and it is proxying both requests for the backend and the frontend to their corresponding URLs.
+In this setup, we could deploy the static assets for the React application on the CDN, for example, that runs on a domain that is different from the one the backend application uses. Because from the browser's perspective, cookies set by the backend come from app.globomantics.com and the React application is coming from the same domain, SameSite cookie will work.
+
+Please visit https://bit.ly/reverseprox to see an example on how this is setup.
