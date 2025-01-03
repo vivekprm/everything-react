@@ -257,3 +257,32 @@ Now let's say the browser browses to another application, an aplication within t
 <img width="1137" alt="Screenshot 2025-01-03 at 6 01 55 PM" src="https://github.com/user-attachments/assets/073296ea-24f0-4d71-8be3-c26bcc95becf" />
 
 The only piece of information missing from above picture is how the identity provider communicates with our backend to send the user information.
+
+## Identity Provider Concepts
+Consider the example of Hotel, we are there for hotel reservation. The will ask for an ID. Let's say it's passport to check the claims that are on it. But there is more to it.
+Everybody could fabricate a document with some claims and that's why the passport is issued by an **authority**, an organization that keeps your personal information safe. The passport is only issued by the authority with your permission. The authority in this case might be the government of the country you're living in.
+
+The hotel knows that the passport is issued by the authority because the document says so, to prevent others from fabricating similar document or copying the document. The document also has certain characteristics. It could be a stamp or a hologram mark or a certain kind of paper. But that is not enough for the hotel to know for sure that you are who you say you are. There also has to be a trust relationship between the hotel and the authority. 
+The hotel has to trust that the personal information on file at the government and thus the claims in the document, are the truth. This trust relationship is the reason the hotel doesn't accept your golf club membership card as an ID document.
+
+There is also a trust relationship between you and the issuer of the document because you trust the issuing organization to keep your information safe.
+
+Now we are taking this analogy to the world of applications, applications protected by an **identity provider**. In our analogy, the hotel was the party that needed authentication. In the application world, an application needs authentication, and such an application is called a client, so our backend application is a client. 
+
+Just like the hotel had a trust relationship with the issuing organization of the passport, a client has a trust relationship with the identity provider. And just as you as the guest of the hotel, had that same trust relationship, the user of a client has it too.
+
+The issuer of your passport keeps all your information safe. Same thing for the identity provider. The identity provider protects the personal data in the form of claims and also a second type of resource access to an API on behalf of you, the user. And ofcourse to make sure eavesdroppers have no chance, all identity provider interaction is done via HTTPS.
+
+That's great but somehow this information has to be sent to the client. We need something like the passport was for the hotel, something that can show the client claims while at the same time client knows for sure it can trust these claims to be true and that's where tokens come in.
+
+pic
+
+Tokens are issued by the identity provider, but only with your permission and not before certain cryptographic characteristics are added to them. The digital version of the anti-forgery measures the passport has. The token is then sent to the client, which verifies the token using these characteristics. It makes sure the token came from the identity provider it trusts, and it checks if the token wasn't tampered with along the way.
+
+There are two types of tokens corresponding to the two types of resources the identity provider protects. The identity token contains the personal data of the user, in other words, the claims.
+
+It is consumed by the client as soon as it receives it. It uses the information contained to create the identity cookie and then discards it. So notice the difference between an identity token and identity cookie here. These are two separate things.
+
+Now when it's time for the client to do a request to a protected API it has to send along the access token. Now, I am not talking about the embedded backend endpoints we've used so far, but about the APIs that are separate applications, allowing them to be accessed by potentially many applications in the application landscape.
+
+The access token serves two purposes it acts like key that gains access to the API and it can also contain one or more claims of the user so the API can do authorization if needed. You don't need an access token per API, by the way. 
